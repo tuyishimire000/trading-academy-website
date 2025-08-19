@@ -49,8 +49,8 @@ export async function GET(request: Request) {
       }]
     })
     
-    // Calculate total revenue by multiplying active subscriptions by their plan prices
-    const totalRevenue = activeSubsWithPlans.reduce((sum, sub) => {
+    // Calculate total monthly revenue from active subscriptions
+    const totalRevenue = activeSubsWithPlans.reduce((sum, sub: any) => {
       const planPrice = sub.plan?.price || 0
       return sum + planPrice
     }, 0)
