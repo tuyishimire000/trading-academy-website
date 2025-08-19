@@ -1,6 +1,6 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+// Fetch via REST API backed by Sequelize/MySQL
 import { useEffect, useState } from "react"
 
 interface Course {
@@ -21,25 +21,14 @@ export function useCourses() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const { data, error } = await supabase
-          .from("courses")
-          .select(`
-            *,
-            course_categories (
-              name,
-              icon
-            )
-          `)
-          .eq("is_published", true)
-          .order("sort_order")
-
-        if (error) throw error
-        setCourses(data || [])
+        const res = await fetch("/api/courses")
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to fetch courses")
+        setCourses(json.courses || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch courses")
       } finally {
@@ -48,7 +37,7 @@ export function useCourses() {
     }
 
     fetchCourses()
-  }, [supabase])
+  }, [])
 
   return { courses, loading, error }
 }

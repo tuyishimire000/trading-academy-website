@@ -1,97 +1,121 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { checkAdminPermission } from "@/lib/auth/admin"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { checkAdminAccess } from "@/lib/auth/admin"
+import { ForumPost, ForumCategory, User } from "@/lib/sequelize/models"
+import { Op } from "sequelize"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { hasPermission, error } = await checkAdminPermission("analytics", "read")
-
-    if (!hasPermission) {
-      return NextResponse.json({ error: error || "Insufficient permissions" }, { status: 403 })
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
     }
 
-    const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search') || ''
+    const categoryId = searchParams.get('categoryId') || ''
+    const type = searchParams.get('type') || '' // 'posts' or 'replies'
 
-    // Get recent user activity (last 7 days)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const offset = (page - 1) * limit
 
-    const { data: recentUsers, error: recentUsersError } = await supabase
-      .from("profiles")
-      .select("first_name, last_name, created_at")
-      .gte("created_at", sevenDaysAgo.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(10)
-
-    // Get event registrations
-    const { data: eventRegistrations, error: eventRegError } = await supabase
-      .from("event_registrations")
-      .select(`
-        *,
-        events (
-          title,
-          event_date
-        ),
-        profiles (
-          first_name,
-          last_name
-        )
-      `)
-      .order("created_at", { ascending: false })
-      .limit(20)
-
-    // Get course enrollments (recent)
-    const { data: courseEnrollments, error: courseEnrollError } = await supabase
-      .from("user_course_progress")
-      .select(`
-        created_at,
-        status,
-        courses (
-          title
-        ),
-        profiles (
-          first_name,
-          last_name
-        )
-      `)
-      .gte("created_at", sevenDaysAgo.toISOString())
-      .order("created_at", { ascending: false })
-      .limit(15)
-
-    // Mock Discord statistics (you can replace with real Discord API data)
-    const discordStats = {
-      totalMembers: 1247,
-      onlineMembers: 89,
-      newMembersToday: 12,
-      messagesLast24h: 156,
-      activeChannels: 8,
+    // Build where clause
+    const where: any = {}
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { content: { [Op.like]: `%${search}%` } }
+      ]
+    }
+    if (categoryId) {
+      where.category_id = categoryId
+    }
+    if (type === 'posts') {
+      where.parent_id = null
+    } else if (type === 'replies') {
+      where.parent_id = { [Op.ne]: null }
     }
 
-    // Calculate community engagement metrics
-    const totalUsers = await supabase.from("profiles").select("*", { count: "exact", head: true })
-
-    const activeUsers = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .gte("updated_at", sevenDaysAgo.toISOString())
-
-    const engagementRate = totalUsers.count ? Math.round(((activeUsers.count || 0) / totalUsers.count) * 100) : 0
+    const posts = await ForumPost.findAndCountAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'first_name', 'last_name', 'email']
+        },
+        {
+          model: ForumCategory,
+          as: 'category',
+          attributes: ['id', 'name', 'slug']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    })
 
     return NextResponse.json({
-      community: {
-        recentUsers: recentUsers || [],
-        eventRegistrations: eventRegistrations || [],
-        courseEnrollments: courseEnrollments || [],
-        discordStats,
-        engagement: {
-          totalUsers: totalUsers.count || 0,
-          activeUsers: activeUsers.count || 0,
-          engagementRate,
-        },
-      },
+      posts: posts.rows,
+      pagination: {
+        total: posts.count,
+        page,
+        limit,
+        totalPages: Math.ceil(posts.count / limit)
+      }
     })
   } catch (error) {
-    console.error("Admin community fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Admin community fetch error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch community posts' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Post ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const post = await ForumPost.findByPk(id)
+    if (!post) {
+      return NextResponse.json(
+        { error: 'Post not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete the post and all its replies
+    await ForumPost.destroy({
+      where: {
+        [Op.or]: [
+          { id },
+          { parent_id: id }
+        ]
+      }
+    })
+
+    return NextResponse.json({ message: 'Post and replies deleted successfully' })
+  } catch (error) {
+    console.error('Admin community deletion error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete post' },
+      { status: 500 }
+    )
   }
 }

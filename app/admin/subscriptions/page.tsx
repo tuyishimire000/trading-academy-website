@@ -1,4 +1,5 @@
 import { SubscriptionsManagement } from "@/components/admin/subscriptions-management"
+import { PlansManagement } from "@/components/admin/plans-management"
 
 export default function SubscriptionsPage() {
   return (
@@ -8,6 +9,7 @@ export default function SubscriptionsPage() {
         <p className="text-muted-foreground">Manage user subscriptions and billing</p>
       </div>
       <SubscriptionsManagement />
+      <PlansManagement />
     </div>
   )
 }

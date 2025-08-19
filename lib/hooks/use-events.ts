@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 
 interface Event {
@@ -17,21 +16,14 @@ interface Event {
 export function useEvents() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .eq("status", "scheduled")
-          .gte("start_time", new Date().toISOString())
-          .order("start_time")
-          .limit(10)
-
-        if (error) throw error
-        setEvents(data || [])
+        const res = await fetch("/api/events")
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error || "Failed to fetch events")
+        setEvents(json.events || [])
       } catch (err) {
         console.error("Error fetching events:", err)
       } finally {
@@ -40,7 +32,7 @@ export function useEvents() {
     }
 
     fetchEvents()
-  }, [supabase])
+  }, [])
 
   return { events, loading }
 }

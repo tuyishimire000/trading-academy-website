@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { useUser } from "./use-user"
 
@@ -27,7 +26,6 @@ export function useUserProgress() {
     totalCourses: 0,
     overallProgress: 0,
   })
-  const supabase = createClient()
 
   useEffect(() => {
     if (!user) {
@@ -37,30 +35,16 @@ export function useUserProgress() {
 
     const fetchProgress = async () => {
       try {
-        const { data, error } = await supabase
-          .from("user_course_progress")
-          .select(`
-            *,
-            courses (
-              title,
-              thumbnail_url,
-              difficulty_level
-            )
-          `)
-          .eq("user_id", user.id)
-          .order("last_accessed", { ascending: false })
-
-        if (error) throw error
-
-        const progressData = data || []
+        const res = await fetch("/api/user/progress")
+        if (!res.ok) throw new Error("Failed to fetch progress")
+        const json = await res.json()
+        const progressData = json.progress || []
         setProgress(progressData)
 
-        // Calculate stats
-        const completed = progressData.filter((p) => p.status === "completed").length
-        const inProgress = progressData.filter((p) => p.status === "in_progress").length
+        const completed = progressData.filter((p: any) => p.status === "completed").length
+        const inProgress = progressData.filter((p: any) => p.status === "in_progress").length
         const total = progressData.length
-        const overall =
-          total > 0 ? Math.round(progressData.reduce((acc, p) => acc + p.progress_percentage, 0) / total) : 0
+        const overall = total > 0 ? Math.round(progressData.reduce((acc: number, p: any) => acc + p.progress_percentage, 0) / total) : 0
 
         setStats({
           coursesCompleted: completed,
@@ -76,7 +60,7 @@ export function useUserProgress() {
     }
 
     fetchProgress()
-  }, [user, supabase])
+  }, [user])
 
   return { progress, stats, loading }
 }

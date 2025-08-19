@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,44 +19,36 @@ export default function LoginPage() {
     password: "",
   })
 
-  const supabase = createClient()
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      console.log("Attempting login with:", formData.email)
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+      const response = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
       })
 
-      console.log("Login response:", { data, error })
+      const data = await response.json()
 
-      if (error) {
-        console.error("Login error:", error)
-        throw new Error(error.message)
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to sign in")
       }
 
-      if (data.user && data.session) {
-        console.log("Login successful, user:", data.user.id)
+      toast({
+        title: "Success!",
+        description: "Signed in successfully",
+      })
 
-        toast({
-          title: "Success!",
-          description: "Signed in successfully",
-        })
-
-        // Wait a moment for the session to be set, then redirect
-        setTimeout(() => {
-          console.log("Redirecting to dashboard...")
+      setTimeout(() => {
+        if (data?.user?.is_admin) {
+          router.push("/admin")
+        } else {
           router.push("/dashboard")
-          router.refresh()
-        }, 500)
-      } else {
-        throw new Error("No user or session returned from login")
-      }
+        }
+        router.refresh()
+      }, 300)
     } catch (error) {
       console.error("Login exception:", error)
       toast({

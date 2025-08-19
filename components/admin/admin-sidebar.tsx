@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Menu,
   X,
+  LogOut,
 } from "lucide-react"
 
 const navigation = [
@@ -31,7 +32,14 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/signout", { method: "POST" })
+    router.push("/")
+    router.refresh()
+  }
 
   return (
     <>
@@ -91,11 +99,9 @@ export function AdminSidebar() {
         </nav>
 
         <div className="absolute bottom-0 w-full p-4 border-t border-gray-800">
-          <Link href="/dashboard" className="block">
-            <Button variant="outline" className="w-full bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800">
-              Back to Dashboard
-            </Button>
-          </Link>
+          <Button onClick={handleLogout} variant="outline" className="w-full bg-transparent border-gray-600 text-gray-300 hover:bg-gray-800">
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </Button>
         </div>
       </div>
     </>

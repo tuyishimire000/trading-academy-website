@@ -5,17 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { useUser } from "@/lib/hooks/use-user"
 import { useSubscription } from "@/lib/hooks/use-subscription"
 import { MessageCircle, LogOut } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
 export function UserHeader() {
   const { user, loading: userLoading } = useUser()
   const { subscription, loading: subscriptionLoading } = useSubscription()
   const router = useRouter()
-  const supabase = createClient()
-
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await fetch("/api/auth/signout", { method: "POST" })
     router.push("/")
     router.refresh()
   }

@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { useUser } from "./use-user"
 
@@ -20,7 +19,6 @@ export function useSubscription() {
   const { user } = useUser()
   const [subscription, setSubscription] = useState<UserSubscription | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     if (!user) {
@@ -29,28 +27,19 @@ export function useSubscription() {
     }
 
     const fetchSubscription = async () => {
-      const { data, error } = await supabase
-        .from("user_subscriptions")
-        .select(`
-          *,
-          subscription_plans (
-            name,
-            display_name,
-            features
-          )
-        `)
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .single()
-
-      if (!error && data) {
-        setSubscription(data)
+      try {
+        const res = await fetch("/api/user/subscription")
+        if (res.ok) {
+          const json = await res.json()
+          setSubscription(json.subscription)
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchSubscription()
-  }, [user, supabase])
+  }, [user])
 
   return { subscription, loading }
 }

@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Check, Star } from "lucide-react"
 import { formatPrice } from "@/lib/utils/format"
-import { createClient } from "@/lib/supabase/client"
 
 interface SubscriptionPlan {
   id: string
@@ -25,32 +24,22 @@ export function DynamicPricing() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     const fetchPlans = async () => {
       try {
         console.log("Fetching subscription plans...")
 
-        const { data, error } = await supabase
-          .from("subscription_plans")
-          .select("*")
-          .eq("is_active", true)
-          .order("price")
-
-        console.log("Subscription plans response:", { data, error })
-
-        if (error) {
-          console.error("Error fetching plans:", error)
-          setError(error.message)
-          throw error
+        const res = await fetch("/api/subscription-plans")
+        const json = await res.json()
+        if (!res.ok) {
+          setError(json.error || "Failed to fetch plans")
+          throw new Error(json.error || "Failed to fetch plans")
         }
-
+        const data = json.plans as SubscriptionPlan[]
         if (data && data.length > 0) {
-          console.log(`Found ${data.length} subscription plans`)
-          setPlans(data || [])
+          setPlans(data)
         } else {
-          console.warn("No subscription plans found")
           setError("No subscription plans available")
         }
       } catch (err) {
@@ -62,7 +51,7 @@ export function DynamicPricing() {
     }
 
     fetchPlans()
-  }, [supabase])
+  }, [])
 
   if (loading) {
     return (

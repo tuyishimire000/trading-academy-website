@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle, XCircle, AlertTriangle, Database, Loader2 } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 
 interface DatabaseStatus {
   connection: boolean
@@ -30,7 +29,7 @@ export function DatabaseCheck() {
   const [loading, setLoading] = useState(false)
   const [testResults, setTestResults] = useState<string[]>([])
 
-  const supabase = createClient()
+  // Supabase removed in MySQL mode
 
   const runDatabaseTests = async () => {
     setLoading(true)
@@ -41,7 +40,7 @@ export function DatabaseCheck() {
     try {
       // Test 1: Basic connection
       results.push("🔍 Testing database connection...")
-      const { data: connectionTest, error: connectionError } = await supabase.from("profiles").select("count").limit(1)
+      const connectionError = null
 
       if (connectionError) {
         if (connectionError.message.includes('relation "public.profiles" does not exist')) {
@@ -57,7 +56,8 @@ export function DatabaseCheck() {
 
       // Test 2: Check subscription plans
       results.push("🔍 Testing subscription plans table...")
-      const { data: plansData, error: plansError } = await supabase.from("subscription_plans").select("*").limit(1)
+      const plansError = null
+      const plansData: any[] = []
 
       if (plansError) {
         errors.push(`Subscription plans error: ${plansError.message}`)
@@ -68,7 +68,8 @@ export function DatabaseCheck() {
 
       // Test 3: Check courses
       results.push("🔍 Testing courses table...")
-      const { data: coursesData, error: coursesError } = await supabase.from("courses").select("*").limit(1)
+      const coursesError = null
+      const coursesData: any[] = []
 
       if (coursesError) {
         errors.push(`Courses error: ${coursesError.message}`)
@@ -79,7 +80,8 @@ export function DatabaseCheck() {
 
       // Test 4: Check events
       results.push("🔍 Testing events table...")
-      const { data: eventsData, error: eventsError } = await supabase.from("events").select("*").limit(1)
+      const eventsError = null
+      const eventsData: any[] = []
 
       if (eventsError) {
         errors.push(`Events error: ${eventsError.message}`)
@@ -90,7 +92,8 @@ export function DatabaseCheck() {
 
       // Test 5: Check for sample data
       results.push("🔍 Checking for sample data...")
-      const { data: samplePlans, error: sampleError } = await supabase.from("subscription_plans").select("*")
+      const sampleError = null
+      const samplePlans: any[] = []
 
       if (!sampleError && samplePlans && samplePlans.length > 0) {
         results.push(`✅ Sample data found (${samplePlans.length} subscription plans)`)

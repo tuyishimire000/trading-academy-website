@@ -1,25 +1,22 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { Event } from "@/lib/sequelize/models"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
+    const events = await Event.findAll({
+      where: {
+        status: 'scheduled'
+      },
+      order: [['start_time', 'ASC']],
+      limit: 10
+    })
 
-    const { data: events, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("status", "scheduled")
-      .gte("start_time", new Date().toISOString())
-      .order("start_time")
-      .limit(10)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
-    return NextResponse.json({ events })
+    return NextResponse.json(events)
   } catch (error) {
-    console.error("Events fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Events fetch error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch events' },
+      { status: 500 }
+    )
   }
 }

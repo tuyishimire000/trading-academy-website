@@ -1,69 +1,245 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { checkAdminAccess } from "@/lib/auth/admin"
+import { Course, CourseCategory, CourseModule, UserProgress } from "@/lib/sequelize/models"
+import { Op } from "sequelize"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
     }
 
-    const { data: courses, error } = await supabase
-      .from("courses")
-      .select(`
-        *,
-        course_categories (
-          name,
-          display_name: name
-        ),
-        course_modules (
-          id,
-          title,
-          is_published
-        )
-      `)
-      .order("created_at", { ascending: false })
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search') || ''
+    const categoryId = searchParams.get('categoryId') || ''
+    const status = searchParams.get('status') || ''
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    const offset = (page - 1) * limit
+
+    // Build where clause
+    const where: any = {}
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } }
+      ]
+    }
+    if (categoryId && categoryId !== 'all') {
+      where.category_id = categoryId
+    }
+    if (status && status !== 'all') {
+      where.is_published = status === 'published'
     }
 
-    return NextResponse.json({ courses })
+    const courses = await Course.findAndCountAll({
+      where,
+      include: [
+        {
+          model: CourseCategory,
+          as: 'category',
+          attributes: ['id', 'name', 'icon']
+        },
+        {
+          model: CourseModule,
+          as: 'modules',
+          attributes: ['id', 'title', 'content_type', 'duration', 'is_published']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    })
+
+    // Get enrollment statistics for each course
+    const coursesWithStats = await Promise.all(
+      courses.rows.map(async (course) => {
+        const enrollmentCount = await UserProgress.count({
+          where: { course_id: course.id }
+        })
+
+        const avgProgress = await UserProgress.findOne({
+          where: { course_id: course.id },
+          attributes: [
+            [UserProgress.sequelize.fn('AVG', UserProgress.sequelize.col('progress_percentage')), 'avgProgress']
+          ]
+        })
+
+        return {
+          ...course.toJSON(),
+          enrollmentCount,
+          avgProgress: parseFloat(avgProgress?.getDataValue('avgProgress') || '0').toFixed(2)
+        }
+      })
+    )
+
+    return NextResponse.json({
+      courses: coursesWithStats,
+      pagination: {
+        total: courses.count,
+        page,
+        limit,
+        totalPages: Math.ceil(courses.count / limit)
+      }
+    })
   } catch (error) {
-    console.error("Admin courses fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Admin courses fetch error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch courses' },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
+    }
+
     const body = await request.json()
-
     const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
+      category_id,
+      title,
+      description,
+      thumbnail_url,
+      difficulty_level,
+      estimated_duration,
+      required_plan,
+      sort_order,
+      is_published
+    } = body
 
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    // Validate category_id - if it's "all", "none", or empty, set to null
+    const validCategoryId = (category_id && category_id !== 'all' && category_id !== 'none') ? category_id : null
 
-    const { data: course, error } = await supabase.from("courses").insert([body]).select().single()
+    const course = await Course.create({
+      category_id: validCategoryId,
+      title,
+      description,
+      thumbnail_url,
+      difficulty_level: difficulty_level || 'beginner',
+      estimated_duration,
+      required_plan: required_plan || 'basic',
+      sort_order: sort_order || 0,
+      is_published: is_published || false
+    })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
-
-    return NextResponse.json({ course })
+    return NextResponse.json({ 
+      course,
+      message: 'Course created successfully! 🎉',
+      success: true
+    })
   } catch (error) {
-    console.error("Admin course creation error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Admin course creation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to create course' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const {
+      id,
+      category_id,
+      title,
+      description,
+      thumbnail_url,
+      difficulty_level,
+      estimated_duration,
+      required_plan,
+      sort_order,
+      is_published
+    } = body
+
+    const course = await Course.findByPk(id)
+    if (!course) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
+    // Validate category_id - if it's "all", "none", or empty, set to null
+    const validCategoryId = (category_id && category_id !== 'all' && category_id !== 'none') ? category_id : null
+
+    await course.update({
+      category_id: validCategoryId,
+      title,
+      description,
+      thumbnail_url,
+      difficulty_level,
+      estimated_duration,
+      required_plan,
+      sort_order,
+      is_published
+    })
+
+    return NextResponse.json({ 
+      course,
+      message: 'Course updated successfully! ✨',
+      success: true
+    })
+  } catch (error) {
+    console.error('Admin course update error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update course' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Course ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const course = await Course.findByPk(id)
+    if (!course) {
+      return NextResponse.json(
+        { error: 'Course not found' },
+        { status: 404 }
+      )
+    }
+
+    await course.destroy()
+
+    return NextResponse.json({ 
+      message: 'Course deleted successfully! 🗑️',
+      success: true
+    })
+  } catch (error) {
+    console.error('Admin course deletion error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete course' },
+      { status: 500 }
+    )
   }
 }

@@ -1,60 +1,33 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { User } from "@/lib/sequelize/models"
+import { verifyAuth } from "./server"
 
-export async function checkAdminAccess() {
-  const supabase = await createServerClient()
+export async function checkAdminAccess(request: Request) {
+  try {
+    const user = await verifyAuth(request)
+    
+    if (!user) {
+      return { isAdmin: false, user: null, error: "Unauthorized" }
+    }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+    // Check if user is admin
+    if (!user.is_admin) {
+      return { isAdmin: false, user, error: "Admin access required" }
+    }
 
-  if (userError || !user) {
-    return { isAdmin: false, user: null, error: "Unauthorized" }
+    return { isAdmin: true, user, error: null }
+  } catch (error) {
+    return { isAdmin: false, user: null, error: "Authentication failed" }
   }
-
-  // Check if user is admin
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .single()
-
-  if (profileError || !profile?.is_admin) {
-    return { isAdmin: false, user, error: "Admin access required" }
-  }
-
-  return { isAdmin: true, user, error: null }
 }
 
-export async function checkAdminPermission(permission: string, action: string) {
-  const { isAdmin, user, error } = await checkAdminAccess()
+export async function checkAdminPermission(request: Request, permission: string, action: string) {
+  const { isAdmin, user, error } = await checkAdminAccess(request)
 
   if (!isAdmin || error) {
     return { hasPermission: false, error }
   }
 
-  const supabase = await createServerClient()
-
-  // Get user's admin roles and permissions
-  const { data: userRoles, error: rolesError } = await supabase
-    .from("user_admin_roles")
-    .select(`
-      admin_roles (
-        name,
-        permissions
-      )
-    `)
-    .eq("user_id", user.id)
-
-  if (rolesError) {
-    return { hasPermission: false, error: rolesError.message }
-  }
-
-  // Check if user has the required permission
-  const hasPermission = userRoles?.some((userRole: any) => {
-    const permissions = userRole.admin_roles?.permissions
-    return permissions?.[permission]?.includes(action)
-  })
-
-  return { hasPermission: hasPermission || false, error: null }
+  // For now, all admins have full permissions
+  // In the future, you can implement role-based permissions here
+  return { hasPermission: true, error: null }
 }

@@ -1,30 +1,49 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { Course, CourseCategory, CourseModule } from "@/lib/sequelize/models"
 
-export async function GET() {
+export const runtime = "nodejs"
+
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerClient()
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('categoryId')
+    const includeModules = searchParams.get('includeModules') === 'true'
 
-    const { data: courses, error } = await supabase
-      .from("courses")
-      .select(`
-        *,
-        course_categories (
-          name,
-          display_name: name,
-          icon
-        )
-      `)
-      .eq("is_published", true)
-      .order("sort_order")
+    const where: any = {
+      is_published: true
+    }
+    if (categoryId) where.category_id = categoryId
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    const include = [
+      {
+        model: CourseCategory,
+        as: 'category',
+        attributes: ['id', 'name', 'description', 'icon']
+      }
+    ]
+
+    if (includeModules) {
+      include.push({
+        model: CourseModule,
+        as: 'modules',
+        where: { is_published: true },
+        required: false,
+        attributes: ['id', 'title', 'description', 'content_type', 'duration', 'sort_order']
+      })
     }
 
-    return NextResponse.json({ courses })
+    const courses = await Course.findAll({
+      where,
+      include,
+      order: [['sort_order', 'ASC']]
+    })
+
+    return NextResponse.json(courses)
   } catch (error) {
-    console.error("Courses fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Courses fetch error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch courses' },
+      { status: 500 }
+    )
   }
 }

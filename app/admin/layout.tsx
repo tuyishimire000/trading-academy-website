@@ -1,11 +1,17 @@
 import type React from "react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { redirect } from "next/navigation"
+import { getCurrentUser } from "@/lib/auth/server"
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const user = await getCurrentUser()
+  if (!user || !user.is_admin) {
+    redirect("/dashboard")
+  }
   return (
     <div className="flex h-screen bg-gray-100">
       <AdminSidebar />

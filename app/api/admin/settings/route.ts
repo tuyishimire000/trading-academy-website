@@ -1,77 +1,100 @@
-import { checkAdminPermission } from "@/lib/auth/admin"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { checkAdminAccess } from "@/lib/auth/admin"
+import { SubscriptionPlan, CourseCategory } from "@/lib/sequelize/models"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { hasPermission, error } = await checkAdminPermission("settings", "read")
-
-    if (!hasPermission) {
-      return NextResponse.json({ error: error || "Insufficient permissions" }, { status: 403 })
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
     }
 
-    // For now, return default settings
-    // In production, you'd store these in a settings table
+    // Fetch subscription plans and course categories for settings
+    const [subscriptionPlans, courseCategories] = await Promise.all([
+      SubscriptionPlan.findAll({
+        order: [['created_at', 'ASC']]
+      }),
+      CourseCategory.findAll({
+        order: [['sort_order', 'ASC']]
+      })
+    ])
+
     const settings = {
-      general: {
-        siteName: "Prime Aura Trading Academy",
-        siteDescription: "Learn trading from the experts",
-        maintenanceMode: false,
-        registrationEnabled: true,
-      },
-      subscription: {
-        stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
-        trialPeriodDays: 7,
-        allowCancellation: true,
-        prorationEnabled: true,
-      },
-      discord: {
-        botToken: process.env.DISCORD_BOT_TOKEN || "",
-        guildId: process.env.DISCORD_GUILD_ID || "",
-        welcomeChannelId: "",
-        autoRoleEnabled: true,
-      },
-      email: {
-        provider: "resend",
-        fromEmail: "noreply@primeaura.com",
-        fromName: "Prime Aura Trading Academy",
-        smtpHost: "",
-        smtpPort: 587,
-      },
-      security: {
-        passwordMinLength: 8,
-        requireSpecialChars: true,
-        sessionTimeoutMinutes: 60,
-        maxLoginAttempts: 5,
-      },
+      subscriptionPlans,
+      courseCategories,
+      systemInfo: {
+        version: '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        database: 'MySQL',
+        features: [
+          'User Management',
+          'Course Management',
+          'Event Management',
+          'Community Forum',
+          'Portfolio Tracking',
+          'Analytics Dashboard'
+        ]
+      }
     }
 
-    return NextResponse.json({ settings })
+    return NextResponse.json(settings)
   } catch (error) {
-    console.error("Admin settings fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Admin settings fetch error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch settings' },
+      { status: 500 }
+    )
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { hasPermission, error } = await checkAdminPermission("settings", "update")
-
-    if (!hasPermission) {
-      return NextResponse.json({ error: error || "Insufficient permissions" }, { status: 403 })
+    const { isAdmin, error } = await checkAdminAccess(request)
+    
+    if (!isAdmin) {
+      return NextResponse.json({ error }, { status: 401 })
     }
 
-    const { category, settings } = await request.json()
+    const body = await request.json()
+    const { action, data } = body
 
-    // In production, you'd save these to a settings table
-    // For now, we'll just return success
-    console.log(`Updating ${category} settings:`, settings)
+    switch (action) {
+      case 'updateSubscriptionPlan':
+        const { id, ...planData } = data
+        const plan = await SubscriptionPlan.findByPk(id)
+        if (!plan) {
+          return NextResponse.json(
+            { error: 'Subscription plan not found' },
+            { status: 404 }
+          )
+        }
+        await plan.update(planData)
+        return NextResponse.json({ plan })
 
-    return NextResponse.json({
-      success: true,
-      message: `${category} settings updated successfully`,
-    })
+      case 'updateCourseCategory':
+        const { id: categoryId, ...categoryData } = data
+        const category = await CourseCategory.findByPk(categoryId)
+        if (!category) {
+          return NextResponse.json(
+            { error: 'Course category not found' },
+            { status: 404 }
+          )
+        }
+        await category.update(categoryData)
+        return NextResponse.json({ category })
+
+      default:
+        return NextResponse.json(
+          { error: 'Invalid action' },
+          { status: 400 }
+        )
+    }
   } catch (error) {
-    console.error("Admin settings update error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Admin settings update error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update settings' },
+      { status: 500 }
+    )
   }
 }

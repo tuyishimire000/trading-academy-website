@@ -19,6 +19,14 @@ export function EnvCheck() {
 
   useEffect(() => {
     const errors: string[] = []
+    const backend = process.env.NEXT_PUBLIC_DATA_BACKEND || process.env.DATA_BACKEND || "supabase"
+
+    // If using MySQL backend, skip Supabase checks
+    if (backend === "mysql") {
+      setEnvStatus({ supabaseUrl: true, supabaseKey: true, hasErrors: false, errors: [] })
+      return
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -57,15 +65,7 @@ export function EnvCheck() {
   }
 
   if (!envStatus.hasErrors) {
-    return (
-      <Alert className="mb-4 border-green-200 bg-green-50">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-800">Environment Configuration Valid</AlertTitle>
-        <AlertDescription className="text-green-700">
-          All required environment variables are properly configured.
-        </AlertDescription>
-      </Alert>
-    )
+    return null
   }
 
   return (
