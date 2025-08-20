@@ -109,6 +109,54 @@ export class EmailService {
       text
     })
   }
+
+  // Helper method to send email verification
+  async sendEmailVerification(email: string, verificationCode: string, firstName: string): Promise<boolean> {
+    const subject = 'Email Verification - Trading Academy'
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #3b82f6;">Welcome to Trading Academy!</h2>
+        <p>Hello ${firstName},</p>
+        <p>Thank you for creating your Trading Academy account. To complete your registration, please verify your email address using the code below:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background-color: #f3f4f6; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; display: inline-block;">
+            <h3 style="color: #3b82f6; margin: 0; font-size: 24px; letter-spacing: 4px;">${verificationCode}</h3>
+          </div>
+        </div>
+        <p>Enter this code on the verification page to complete your registration and access your account.</p>
+        <p>This code will expire in 10 minutes for security reasons.</p>
+        <p>If you didn't create this account, please ignore this email.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+        <p style="color: #6b7280; font-size: 14px;">
+          This is an automated message from Trading Academy. Please do not reply to this email.
+        </p>
+      </div>
+    `
+    const text = `
+      Email Verification - Trading Academy
+      
+      Hello ${firstName},
+      
+      Thank you for creating your Trading Academy account. To complete your registration, please verify your email address using the code below:
+      
+      Your verification code is: ${verificationCode}
+      
+      Enter this code on the verification page to complete your registration and access your account.
+      
+      This code will expire in 10 minutes for security reasons.
+      
+      If you didn't create this account, please ignore this email.
+      
+      This is an automated message from Trading Academy. Please do not reply to this email.
+    `
+
+    return await this.sendEmail({
+      to: email,
+      subject,
+      html,
+      text
+    })
+  }
 }
 
 // Factory function to create email service

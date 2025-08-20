@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -11,22 +11,72 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { CheckCircle, AlertCircle } from "lucide-react"
+import { CheckCircle, AlertCircle, Phone } from "lucide-react"
 
 export default function SignUpPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
+  const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const [selectedPlanId, setSelectedPlanId] = useState(searchParams.get("planId") || "")
+  const [isPlanLocked, setIsPlanLocked] = useState(false)
+  
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
-    plan: searchParams.get("plan") || "basic",
+    planId: searchParams.get("planId") || "",
   })
+
+  // Fetch subscription plans on component mount
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch("/api/subscription-plans")
+        const data = await response.json()
+        
+                 if (response.ok && data.plans) {
+           // Filter out plans with empty IDs and log for debugging
+           const validPlans = data.plans.filter((plan: any) => plan.id && plan.id.trim() !== '')
+           console.log("Fetched plans:", data.plans)
+           console.log("Valid plans (with IDs):", validPlans)
+           setSubscriptionPlans(validPlans)
+          
+          // If planId is provided in URL, lock the plan selection
+          const planIdFromUrl = searchParams.get("planId")
+          console.log("PlanId from URL:", planIdFromUrl)
+          
+                     if (planIdFromUrl) {
+             setSelectedPlanId(planIdFromUrl)
+             setFormData(prev => ({ ...prev, planId: planIdFromUrl }))
+             setIsPlanLocked(true)
+             console.log("Plan locked with ID:", planIdFromUrl)
+           } else if (data.plans.length > 0) {
+             // Find first valid plan (with non-empty ID)
+             const firstValidPlan = data.plans.find((plan: any) => plan.id && plan.id.trim() !== '')
+             if (firstValidPlan) {
+               setSelectedPlanId(firstValidPlan.id)
+               setFormData(prev => ({ ...prev, planId: firstValidPlan.id }))
+               console.log("Default plan set:", firstValidPlan.id)
+             }
+           }
+        }
+      } catch (error) {
+        console.error("Failed to fetch subscription plans:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load subscription plans",
+          variant: "destructive",
+        })
+      }
+    }
+
+    fetchPlans()
+  }, [searchParams, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +99,16 @@ export default function SignUpPage() {
       return
     }
 
+    if (!formData.planId) {
+      toast({
+        title: "Error",
+        description: "Please select a subscription plan",
+        variant: "destructive",
+      })
+      return
+    }
+
+    console.log("Submitting form with planId:", formData.planId)
     setLoading(true)
 
     try {
@@ -62,7 +122,8 @@ export default function SignUpPage() {
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          plan: formData.plan,
+          phoneNumber: formData.phoneNumber,
+          planId: formData.planId,
         }),
       })
 
@@ -73,11 +134,12 @@ export default function SignUpPage() {
       }
 
       if (data.needsEmailVerification) {
-        setEmailSent(true)
         toast({
           title: "Check your email!",
-          description: "We've sent you a verification link to complete your registration.",
+          description: "We've sent you a verification code to complete your registration.",
         })
+        // Redirect to email verification page
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`)
       } else {
         toast({
           title: "Success!",
@@ -96,48 +158,11 @@ export default function SignUpPage() {
     }
   }
 
-  const planPrices = {
-    basic: "$14.99/month",
-    pro: "$24.99/month",
-    elite: "$499.99 (Lifetime)",
-  }
-
-  if (emailSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-6 sm:space-y-8">
-          <Card className="w-full">
-            <CardHeader className="text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <CardTitle className="text-xl sm:text-2xl">Check Your Email</CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                We've sent a verification link to <strong>{formData.email}</strong>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Click the link in your email to verify your account and complete registration. The link will expire in
-                  24 hours.
-                </AlertDescription>
-              </Alert>
-              <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">Didn't receive the email?</p>
-                <Button variant="outline" onClick={() => setEmailSent(false)} className="bg-transparent">
-                  Try Again
-                </Button>
-              </div>
-              <div className="text-center">
-                <Link href="/login" className="text-amber-500 hover:underline text-sm">
-                  Back to Login
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
+  const formatPrice = (price: number, billingCycle: string) => {
+    if (billingCycle === 'lifetime') {
+      return `$${price.toFixed(2)} (Lifetime)`
+    }
+    return `$${price.toFixed(2)}/${billingCycle}`
   }
 
   return (
@@ -207,6 +232,27 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-sm">
+                  Phone Number
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    placeholder="+1 (555) 123-4567"
+                    value={formData.phoneNumber}
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    required
+                    className="h-10 pl-10"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter your phone number with country code (e.g., +1 for US)
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm">
                   Password
                 </Label>
@@ -240,17 +286,36 @@ export default function SignUpPage() {
               <div className="space-y-2">
                 <Label htmlFor="plan" className="text-sm">
                   Subscription Plan
+                  {isPlanLocked && <span className="text-xs text-amber-600 ml-2">(Pre-selected)</span>}
                 </Label>
-                <Select value={formData.plan} onValueChange={(value) => setFormData({ ...formData, plan: value })}>
+                <Select 
+                  value={selectedPlanId || ""} 
+                  onValueChange={(value) => {
+                    if (value && value.trim() !== '') {
+                      setSelectedPlanId(value)
+                      setFormData({ ...formData, planId: value })
+                    }
+                  }}
+                  disabled={isPlanLocked}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select a plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="basic">Basic - {planPrices.basic}</SelectItem>
-                    <SelectItem value="pro">Pro - {planPrices.pro}</SelectItem>
-                    <SelectItem value="elite">Elite - {planPrices.elite}</SelectItem>
+                    {subscriptionPlans
+                      .filter((plan: any) => plan.id && plan.id.trim() !== '') // Filter out plans with empty IDs
+                      .map((plan: any) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.display_name || plan.name} - {formatPrice(plan.price, plan.billing_cycle)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                {isPlanLocked && (
+                  <p className="text-xs text-amber-600">
+                    This plan was pre-selected based on your choice from the landing page.
+                  </p>
+                )}
               </div>
 
               <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 h-10 sm:h-11" disabled={loading}>

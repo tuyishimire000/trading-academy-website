@@ -190,7 +190,7 @@ export function DynamicPricing() {
                     </li>
                   ))}
                 </ul>
-                <Link href={`/signup?plan=${plan.name}`} className="w-full block">
+                <Link href={`/signup?planId=${plan.id}`} className="w-full block">
                   <Button
                     className={`w-full ${
                       plan.name === "pro"

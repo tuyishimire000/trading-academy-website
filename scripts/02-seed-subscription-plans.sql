@@ -1,6 +1,26 @@
 -- Seed subscription plans data
 INSERT INTO subscription_plans (name, display_name, description, price, billing_cycle, features) VALUES
 (
+    'free',
+    'Free',
+    'Get started with trading',
+    0.00,
+    'monthly',
+    '{
+        "features": [
+            "Basic trading introduction",
+            "Limited course access (3 courses)",
+            "Community forum access",
+            "Email support",
+            "Mobile app access"
+        ],
+        "max_courses": 3,
+        "live_sessions_per_month": 0,
+        "one_on_one_sessions": 0,
+        "priority_support": false
+    }'::jsonb
+),
+(
     'basic',
     'Basic',
     'Perfect for beginners',

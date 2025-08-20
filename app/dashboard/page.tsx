@@ -43,23 +43,42 @@ export default function DashboardPage() {
   useEffect(() => {
     let mounted = true
 
-    const checkAuth = async () => {
+    const checkAuthAndSubscription = async () => {
       try {
         const res = await fetch("/api/auth/me")
         if (res.ok) {
           const json = await res.json()
           setUser(json.user)
+          
+          // Check subscription status
+          const subscriptionRes = await fetch("/api/user/subscription")
+          if (subscriptionRes.ok) {
+            const subscriptionData = await subscriptionRes.json()
+            const subscription = subscriptionData.subscription
+            
+            // If no subscription or subscription is pending, redirect to subscription page
+            if (!subscription || subscription.status === 'pending') {
+              router.push("/subscription")
+              return
+            }
+          } else {
+            // If there's an error checking subscription, redirect to subscription page
+            router.push("/subscription")
+            return
+          }
         } else {
           router.push("/login")
         }
       } catch (error) {
         router.push("/login")
       } finally {
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
-    checkAuth()
+    checkAuthAndSubscription()
 
     return () => {
       mounted = false
