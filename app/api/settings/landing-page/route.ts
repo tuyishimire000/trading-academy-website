@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { WebsiteSettings } from "@/lib/sequelize/models"
 
-// Default website settings
+// Default website settings (fallback)
 const defaultSettings = {
   branding: {
     websiteName: "Trading Academy",
@@ -57,14 +58,21 @@ const defaultSettings = {
 
 export async function GET(request: NextRequest) {
   try {
-    // Use global settings if available, otherwise use defaults
-    const settings = (global as any).landingPageSettings || defaultSettings
-    return NextResponse.json(settings)
+    // Get settings from database
+    const settings = await WebsiteSettings.findOne()
+    
+    if (!settings) {
+      // Return default settings if no database record exists
+      return NextResponse.json(defaultSettings)
+    }
+
+    return NextResponse.json({
+      branding: settings.branding,
+      landingPage: settings.landingPage
+    })
   } catch (error) {
     console.error('Landing page settings fetch error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch landing page settings' },
-      { status: 500 }
-    )
+    // Return default settings on error
+    return NextResponse.json(defaultSettings)
   }
 }

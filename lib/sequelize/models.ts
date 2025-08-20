@@ -806,6 +806,42 @@ UserAchievement.belongsTo(Achievement, { foreignKey: "achievement_id", as: "achi
 UserSubscription.belongsTo(User, { foreignKey: "user_id", as: "user" })
 UserSubscription.belongsTo(SubscriptionPlan, { foreignKey: "plan_id", as: "plan" })
 
+// Website Settings
+interface WebsiteSettingsAttributes {
+  id: string
+  branding: object
+  landingPage: object
+  created_at: Date
+  updated_at: Date
+}
+
+type WebsiteSettingsCreation = Optional<
+  WebsiteSettingsAttributes,
+  "id" | "created_at" | "updated_at"
+>
+
+export class WebsiteSettings
+  extends Model<WebsiteSettingsAttributes, WebsiteSettingsCreation>
+  implements WebsiteSettingsAttributes
+{
+  declare id: string
+  declare branding: object
+  declare landingPage: object
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+WebsiteSettings.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    branding: { type: DataTypes.JSON, allowNull: false },
+    landingPage: { type: DataTypes.JSON, allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "website_settings", tableName: "website_settings", timestamps: false }
+)
+
 // Add missing associations
 User.hasMany(UserSubscription, { foreignKey: "user_id", as: "subscriptions" })
 SubscriptionPlan.hasMany(UserSubscription, { foreignKey: "plan_id", as: "subscriptions" })
