@@ -33,12 +33,23 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to sign in")
+        // Provide user-friendly error messages
+        let errorMessage = "Failed to sign in"
+        if (data.error === "Invalid credentials") {
+          errorMessage = "Invalid email or password. Please check your credentials and try again."
+        } else if (response.status === 429) {
+          errorMessage = "Too many login attempts. Please wait a moment before trying again."
+        } else if (response.status === 500) {
+          errorMessage = "Server error. Please try again later."
+        } else if (data.error) {
+          errorMessage = data.error
+        }
+        throw new Error(errorMessage)
       }
 
       toast({
-        title: "Success!",
-        description: "Signed in successfully",
+        title: "Welcome back! 🎉",
+        description: "Successfully signed in to your account",
       })
 
       setTimeout(() => {
@@ -48,11 +59,11 @@ export default function LoginPage() {
           router.push("/dashboard")
         }
         router.refresh()
-      }, 300)
+      }, 500)
     } catch (error) {
       console.error("Login exception:", error)
       toast({
-        title: "Error",
+        title: "Login Failed",
         description: error instanceof Error ? error.message : "Failed to sign in",
         variant: "destructive",
       })
@@ -61,12 +72,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoLogin = () => {
-    setFormData({
-      email: "demo@primeaura.com",
-      password: "demo123",
-    })
-  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -119,7 +125,7 @@ export default function LoginPage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <Link href="#" className="text-sm text-amber-500 hover:underline">
+                <Link href="/forgot-password" className="text-sm text-amber-500 hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -128,30 +134,6 @@ export default function LoginPage() {
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
-
-            <div className="mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-800 mb-2">Demo Credentials</h3>
-              <p className="text-xs text-blue-600 mb-3">Use these credentials to test the platform:</p>
-              <div className="space-y-2 text-xs">
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="font-medium">Email:</span>
-                  <span className="font-mono bg-white px-2 py-1 rounded text-xs break-all">demo@primeaura.com</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
-                  <span className="font-medium">Password:</span>
-                  <span className="font-mono bg-white px-2 py-1 rounded text-xs">demo123</span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full mt-3 bg-transparent h-8"
-                onClick={handleDemoLogin}
-              >
-                Use Demo Credentials
-              </Button>
-            </div>
 
             <div className="mt-6 text-center text-sm">
               {"Don't have an account? "}

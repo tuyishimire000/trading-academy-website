@@ -229,24 +229,33 @@ async function setupDatabase() {
         password_hash: hashedPassword,
         first_name: 'Admin',
         last_name: 'User',
+        phone_number: '+1234567890',
         is_admin: true,
-        email_verified_at: new Date()
+        email_verified_at: new Date(),
+        reset_token: null,
+        reset_token_expires_at: null
       },
       {
         email: 'john.doe@example.com',
         password_hash: hashedPassword,
         first_name: 'John',
         last_name: 'Doe',
+        phone_number: '+1987654321',
         is_admin: false,
-        email_verified_at: new Date()
+        email_verified_at: new Date(),
+        reset_token: null,
+        reset_token_expires_at: null
       },
       {
         email: 'jane.smith@example.com',
         password_hash: hashedPassword,
         first_name: 'Jane',
         last_name: 'Smith',
+        phone_number: '+1555123456',
         is_admin: false,
-        email_verified_at: new Date()
+        email_verified_at: new Date(),
+        reset_token: null,
+        reset_token_expires_at: null
       }
     ])
     console.log('✅ Users created')

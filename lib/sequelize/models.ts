@@ -8,12 +8,15 @@ interface UserAttributes {
   password_hash: string
   first_name: string | null
   last_name: string | null
+  phone_number: string | null
   is_admin: boolean
   email_verified_at: Date | null
   forum_suspended: boolean
   suspension_reason: string | null
   suspended_at: Date | null
   suspended_until: Date | null
+  reset_token: string | null
+  reset_token_expires_at: Date | null
   created_at: Date
   updated_at: Date
 }
@@ -29,12 +32,15 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare password_hash: string
   declare first_name: string | null
   declare last_name: string | null
+  declare phone_number: string | null
   declare is_admin: boolean
   declare email_verified_at: Date | null
   declare forum_suspended: boolean
   declare suspension_reason: string | null
   declare suspended_at: Date | null
   declare suspended_until: Date | null
+  declare reset_token: string | null
+  declare reset_token_expires_at: Date | null
   declare created_at: Date
   declare updated_at: Date
 }
@@ -46,12 +52,15 @@ User.init(
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
     first_name: { type: DataTypes.STRING(100), allowNull: true },
     last_name: { type: DataTypes.STRING(100), allowNull: true },
+    phone_number: { type: DataTypes.STRING(20), allowNull: true },
     is_admin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     email_verified_at: { type: DataTypes.DATE, allowNull: true },
     forum_suspended: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     suspension_reason: { type: DataTypes.TEXT, allowNull: true },
     suspended_at: { type: DataTypes.DATE, allowNull: true },
     suspended_until: { type: DataTypes.DATE, allowNull: true },
+    reset_token: { type: DataTypes.STRING(255), allowNull: true },
+    reset_token_expires_at: { type: DataTypes.DATE, allowNull: true },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },
