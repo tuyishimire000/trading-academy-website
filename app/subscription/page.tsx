@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { PAYMENT_METHODS_CONFIG } from "@/lib/services/payment"
+import { detectCardType, validateCardNumber, validateExpiryDate, validateCVV, getCardTypeColor } from "@/lib/utils/card-utils"
+import StripeCardElement from "@/components/payments/stripe-card-element"
+import NOWPaymentsCryptoElement from "@/components/payments/nowpayments-crypto-element"
 import { 
   CreditCard, 
   CheckCircle, 
@@ -26,7 +29,8 @@ import {
   Loader2,
   Coins,
   Copy,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react"
 
 type PaymentMethod = {
@@ -120,6 +124,7 @@ export default function SubscriptionPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null)
+  const [userData, setUserData] = useState<any>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const [paymentFormData, setPaymentFormData] = useState<any>({})
   const [processingPayment, setProcessingPayment] = useState(false)
@@ -140,6 +145,28 @@ export default function SubscriptionPage() {
   useEffect(() => {
     if (!mounted) return
     
+    const fetchUserData = async () => {
+      try {
+        // Fetch authenticated user data
+        const userResponse = await fetch("/api/auth/me")
+        const userData = await userResponse.json()
+        
+        if (userResponse.ok && userData.user) {
+          console.log("User data:", userData.user)
+          setUserData(userData.user)
+        } else {
+          console.error("Failed to fetch user data:", userData)
+          // Redirect to login if not authenticated
+          router.push("/auth/signin")
+          return
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+        router.push("/auth/signin")
+        return
+      }
+    }
+
     const fetchUserSubscription = async () => {
       try {
         const response = await fetch("/api/user/subscription")
@@ -160,8 +187,10 @@ export default function SubscriptionPage() {
       }
     }
 
-    fetchUserSubscription()
-  }, [mounted])
+    fetchUserData().then(() => {
+      fetchUserSubscription()
+    })
+  }, [mounted, router])
 
   const handlePaymentMethodSelect = (methodId: string) => {
     setSelectedPaymentMethod(methodId)
@@ -200,46 +229,20 @@ export default function SubscriptionPage() {
         // Validate based on payment method
     switch (selectedPaymentMethod) {
       case "crypto":
-        if (!paymentFormData.selectedCrypto) {
+        // Validate customer information for crypto payments
+        const customerName = paymentFormData.customerName || `${userData?.first_name || ""} ${userData?.last_name || ""}`.trim()
+        const customerEmail = paymentFormData.customerEmail || userData?.email
+        
+        if (!customerName || !customerEmail) {
           toast({
             title: "Error",
-            description: "Please select a cryptocurrency",
+            description: "Please fill in your name and email address",
             variant: "destructive",
           })
           return false
         }
         break
-      case "stripe":
-        if (!paymentFormData.cardNumber || !paymentFormData.expiryDate || !paymentFormData.cvv || !paymentFormData.cardholderName) {
-          toast({
-            title: "Error",
-            description: "Please fill in all required fields for Stripe payment",
-            variant: "destructive",
-          })
-          return false
-        }
-        
-        // Basic card validation
-        const cardNumber = paymentFormData.cardNumber.replace(/\s/g, "")
-        if (cardNumber.length < 13 || cardNumber.length > 19) {
-          toast({
-            title: "Error",
-            description: "Please enter a valid card number",
-            variant: "destructive",
-          })
-          return false
-        }
-        
-        if (paymentFormData.cvv.length < 3 || paymentFormData.cvv.length > 4) {
-          toast({
-            title: "Error",
-            description: "Please enter a valid CVV",
-            variant: "destructive",
-          })
-          return false
-        }
-        break
-             case "mobile_money":
+      case "mobile_money":
          if (!paymentFormData.phoneNumber || !paymentFormData.provider || !paymentFormData.countryCode || !paymentFormData.network) {
            toast({
              title: "Error",
@@ -270,19 +273,45 @@ export default function SubscriptionPage() {
           return false
         }
         break
-             case "card_payment":
-        if (!paymentFormData.cardNumber || !paymentFormData.expiryDate || !paymentFormData.cvv || !paymentFormData.cardholderName) {
+      case "stripe":
+      case "google_pay":
+      case "apple_pay":
+        // These methods don't require additional form validation (handled by respective services)
+        break
+      case "opay":
+        if (!paymentFormData.phoneNumber) {
           toast({
             title: "Error",
-            description: "Please fill in all required fields for Card Payment",
+            description: "Please enter your Nigerian phone number for OPay payment",
             variant: "destructive",
           })
           return false
         }
         
-        // Basic card validation
-        const cardNumber2 = paymentFormData.cardNumber.replace(/\s/g, "")
-        if (cardNumber2.length < 13 || cardNumber2.length > 19) {
+        // Validate Nigerian phone number format
+        const nigerianPhoneRegex = /^\+234[0-9]{10}$/
+        if (!nigerianPhoneRegex.test(paymentFormData.phoneNumber.replace(/\s/g, ""))) {
+          toast({
+            title: "Error",
+            description: "Please enter a valid Nigerian phone number with +234 country code",
+            variant: "destructive",
+          })
+          return false
+        }
+        break
+      case "card":
+        if (!paymentFormData.cardNumber || !paymentFormData.expiryDate || !paymentFormData.cvv || !paymentFormData.cardholderName) {
+          toast({
+            title: "Error",
+            description: "Please fill in all card details",
+            variant: "destructive",
+          })
+          return false
+        }
+        
+        // Validate card number using Luhn algorithm
+        const cardNumber = paymentFormData.cardNumber.replace(/\s/g, "")
+        if (!validateCardNumber(cardNumber)) {
           toast({
             title: "Error",
             description: "Please enter a valid card number",
@@ -291,26 +320,85 @@ export default function SubscriptionPage() {
           return false
         }
         
-        if (paymentFormData.cvv.length < 3 || paymentFormData.cvv.length > 4) {
+        // Enhanced card type validation with more comprehensive patterns
+        const detectedCardType = paymentFormData.cardType
+        if (!detectedCardType) {
           toast({
             title: "Error",
-            description: "Please enter a valid CVV",
+            description: "Please enter a valid card number from a supported network",
             variant: "destructive",
           })
           return false
         }
-        break
-      case "google_pay":
-      case "apple_pay":
-      case "opay":
-        // These methods typically don't require additional form data
+        
+        // Validate expiry date using utility function
+        if (!validateExpiryDate(paymentFormData.expiryDate)) {
+          toast({
+            title: "Error",
+            description: "Please enter a valid expiry date in MM/YY format",
+            variant: "destructive",
+          })
+          return false
+        }
+        
+        // Validate CVV using utility function
+        const cardTypeInfo = detectCardType(cardNumber)
+        if (!validateCVV(paymentFormData.cvv, cardTypeInfo)) {
+          const expectedLength = cardTypeInfo?.cvvLength || 3
+          toast({
+            title: "Error",
+            description: `Please enter a valid ${expectedLength}-digit CVV for ${detectedCardType}`,
+            variant: "destructive",
+          })
+          return false
+        }
+        
+        // Validate cardholder name
+        if (paymentFormData.cardholderName.trim().length < 2) {
+          toast({
+            title: "Error",
+            description: "Please enter a valid cardholder name",
+            variant: "destructive",
+          })
+          return false
+        }
+        
+        // Additional validation for specific card types
+        if (detectedCardType === 'American Express' && cardNumber.length !== 15) {
+          toast({
+            title: "Error",
+            description: "American Express cards must have 15 digits",
+            variant: "destructive",
+          })
+          return false
+        }
+        
+        if (detectedCardType === 'Diners Club' && cardNumber.length !== 14) {
+          toast({
+            title: "Error",
+            description: "Diners Club cards must have 14 digits",
+            variant: "destructive",
+          })
+          return false
+        }
+        
         break
     }
     return true
   }
 
   const handleCompletePayment = async () => {
-    if (!validateForm()) return
+    // Skip form validation for Stripe and Crypto since they're handled by their respective components
+    if (selectedPaymentMethod !== "stripe" && selectedPaymentMethod !== "crypto" && !validateForm()) return
+
+    // Skip processing for Stripe and Crypto as they're handled by their respective components
+    if (selectedPaymentMethod === "stripe" || selectedPaymentMethod === "crypto") {
+      toast({
+        title: "Info",
+        description: `Please complete your payment using the secure ${selectedPaymentMethod === "stripe" ? "Stripe" : "NOWPayments"} form above.`,
+      })
+      return
+    }
 
     setProcessingPayment(true)
 
@@ -368,6 +456,70 @@ export default function SubscriptionPage() {
                  router.push("/dashboard")
                }, 2000)
              }
+           } else if (selectedPaymentMethod === "google_pay") {
+             // Google Pay payment initiated
+             toast({
+               title: "Google Pay Payment Initiated!",
+               description: data.message || "Please complete your payment on the next page.",
+             })
+             
+             // If there's a payment URL, redirect to it
+             if (data.paymentUrl) {
+               window.location.href = data.paymentUrl
+             } else {
+               // Wait a bit then redirect to dashboard (payment will be confirmed via webhook)
+               setTimeout(() => {
+                 router.push("/dashboard")
+               }, 2000)
+             }
+           } else if (selectedPaymentMethod === "apple_pay") {
+             // Apple Pay payment initiated
+             toast({
+               title: "Apple Pay Payment Initiated!",
+               description: data.message || "Please complete your payment on the next page.",
+             })
+             
+             // If there's a payment URL, redirect to it
+             if (data.paymentUrl) {
+               window.location.href = data.paymentUrl
+             } else {
+               // Wait a bit then redirect to dashboard (payment will be confirmed via webhook)
+               setTimeout(() => {
+                 router.push("/dashboard")
+               }, 2000)
+             }
+           } else if (selectedPaymentMethod === "opay") {
+             // OPay payment initiated
+             toast({
+               title: "OPay Payment Initiated!",
+               description: data.message || "Please complete your payment on the next page.",
+             })
+             
+             // If there's a payment URL, redirect to it
+             if (data.paymentUrl) {
+               window.location.href = data.paymentUrl
+             } else {
+               // Wait a bit then redirect to dashboard (payment will be confirmed via webhook)
+               setTimeout(() => {
+                 router.push("/dashboard")
+               }, 2000)
+             }
+           } else if (selectedPaymentMethod === "card") {
+             // Card payment initiated
+             toast({
+               title: "Card Payment Initiated!",
+               description: data.message || "Please complete your payment on the next page.",
+             })
+             
+             // If there's a payment URL, redirect to it
+             if (data.paymentUrl) {
+               window.location.href = data.paymentUrl
+             } else {
+               // Wait a bit then redirect to dashboard (payment will be confirmed via webhook)
+               setTimeout(() => {
+                 router.push("/dashboard")
+               }, 2000)
+             }
            } else {
              // Other pending payments
              toast({
@@ -402,247 +554,52 @@ export default function SubscriptionPage() {
 
   const renderPaymentForm = () => {
     switch (selectedPaymentMethod) {
-      case "crypto":
+            case "crypto":
         return (
-          <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Coins className="h-5 w-5 text-yellow-600" />
-                <span className="font-semibold text-yellow-800">Cryptocurrency Payment</span>
-              </div>
-              <p className="text-sm text-yellow-700">
-                Pay securely with cryptocurrency. We accept USDT, BTC, USDC, TRX, and other stable cryptocurrencies.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="selectedCrypto">Select Cryptocurrency</Label>
-              <Select 
-                value={paymentFormData.selectedCrypto || ""} 
-                onValueChange={(value) => handleInputChange("selectedCrypto", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose your cryptocurrency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="usdt">USDT (Tether) - Stable</SelectItem>
-                  <SelectItem value="usdc">USDC (USD Coin) - Stable</SelectItem>
-                  <SelectItem value="btc">BTC (Bitcoin)</SelectItem>
-                  <SelectItem value="trx">TRX (TRON)</SelectItem>
-                  <SelectItem value="eth">ETH (Ethereum)</SelectItem>
-                  <SelectItem value="bnb">BNB (Binance Coin)</SelectItem>
-                  <SelectItem value="dai">DAI (Dai) - Stable</SelectItem>
-                  <SelectItem value="busd">BUSD (Binance USD) - Stable</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {mounted && paymentFormData.selectedCrypto && (
-              <div className="space-y-4">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
-                    <span className="text-lg font-bold text-gray-900">
-                      ${formatPrice(userSubscription.plan?.price)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm text-gray-600">Crypto Amount:</span>
-                                         <span className="text-lg font-bold text-yellow-600">
-                       {mounted ? (() => {
-                         const price = Number(userSubscription.plan?.price || 0)
-                         const cryptoRates = {
-                           usdt: price,
-                           usdc: price,
-                           dai: price,
-                           busd: price,
-                           btc: price / 45000, // Approximate BTC rate
-                           trx: price / 0.08, // Approximate TRX rate
-                           eth: price / 2500, // Approximate ETH rate
-                           bnb: price / 300, // Approximate BNB rate
-                         }
-                         const rate = cryptoRates[paymentFormData.selectedCrypto as keyof typeof cryptoRates] || price
-                         return rate.toFixed(6)
-                       })() : "0.000000"} {mounted ? paymentFormData.selectedCrypto?.toUpperCase() : ""}
-                     </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Wallet Address:</span>
-                      <div className="flex items-center space-x-2">
-                                                 <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                           {mounted ? (() => {
-                             const addresses = {
-                               usdt: "TQn9Y2khDD95J42FQtQTdwVVR93rLXk6L9",
-                               usdc: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                               dai: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                               busd: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                               btc: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-                               trx: "TQn9Y2khDD95J42FQtQTdwVVR93rLXk6L9",
-                               eth: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                               bnb: "bnb1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
-                             }
-                             return addresses[paymentFormData.selectedCrypto as keyof typeof addresses] || "Address not available"
-                           })() : "Loading..."}
-                         </code>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                                                     onClick={() => {
-                             if (!mounted) return
-                             const address = (() => {
-                               const addresses = {
-                                 usdt: "TQn9Y2khDD95J42FQtQTdwVVR93rLXk6L9",
-                                 usdc: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                                 dai: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                                 busd: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                                 btc: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-                                 trx: "TQn9Y2khDD95J42FQtQTdwVVR93rLXk6L9",
-                                 eth: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-                                 bnb: "bnb1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
-                               }
-                               return addresses[paymentFormData.selectedCrypto as keyof typeof addresses] || ""
-                             })()
-                             navigator.clipboard.writeText(address)
-                             toast({
-                               title: "Address Copied!",
-                               description: "Wallet address copied to clipboard",
-                             })
-                           }}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Network:</span>
-                                             <span className="text-sm font-medium text-gray-900">
-                         {mounted ? (() => {
-                           const networks = {
-                             usdt: "TRC20 / ERC20",
-                             usdc: "ERC20",
-                             dai: "ERC20",
-                             busd: "BEP20",
-                             btc: "Bitcoin",
-                             trx: "TRON",
-                             eth: "Ethereum",
-                             bnb: "Binance Smart Chain"
-                           }
-                           return networks[paymentFormData.selectedCrypto as keyof typeof networks] || "Unknown"
-                         })() : "Loading..."}
-                       </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Transaction Fee:</span>
-                                             <span className="text-sm font-medium text-gray-900">
-                         {mounted ? (() => {
-                           const fees = {
-                             usdt: "$1-5",
-                             usdc: "$5-15",
-                             dai: "$5-15",
-                             busd: "$0.5-2",
-                             btc: "$2-10",
-                             trx: "$0.1-1",
-                             eth: "$5-20",
-                             bnb: "$0.5-2"
-                           }
-                           return fees[paymentFormData.selectedCrypto as keyof typeof fees] || "Variable"
-                         })() : "Loading..."}
-                       </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-blue-800">Payment Instructions</h4>
-                      <ul className="text-sm text-blue-700 mt-2 space-y-1">
-                        <li>• Send the exact amount shown above to the wallet address</li>
-                        <li>• Use the correct network for your selected cryptocurrency</li>
-                        <li>• Include a memo/note with your email address for faster processing</li>
-                        <li>• Payment will be confirmed within 1-3 network confirmations</li>
-                        <li>• Your subscription will be activated automatically once confirmed</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Shield className="h-4 w-4" />
-                  <span>Secure blockchain payment processing</span>
-                </div>
-              </div>
-            )}
-          </div>
+          <NOWPaymentsCryptoElement
+            onSuccess={async (paymentData: any) => {
+              // Handle successful NOWPayments payment
+              toast({
+                title: "Payment Successful!",
+                description: "Your cryptocurrency payment has been confirmed.",
+              })
+              router.push("/dashboard")
+            }}
+            onError={(error: string) => {
+              toast({
+                title: "Payment Failed",
+                description: error,
+                variant: "destructive",
+              })
+            }}
+            amount={Math.round((userSubscription.plan?.price || 9.99) * 100)} // Convert to cents, fallback to $9.99
+            currency="usd"
+            customerEmail={paymentFormData.customerEmail || userData?.email || ""}
+            customerName={paymentFormData.customerName || `${userData?.first_name || ""} ${userData?.last_name || ""}`.trim() || ""}
+            subscriptionId={userSubscription?.id || ""}
+            isProcessing={processingPayment}
+            setIsProcessing={setProcessingPayment}
+          />
         )
       case "stripe":
         return (
-          <div className="space-y-4">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <CreditCard className="h-5 w-5 text-indigo-600" />
-                <span className="font-semibold text-indigo-800">Stripe Secure Payment</span>
-              </div>
-              <p className="text-sm text-indigo-700">
-                Your payment is processed securely by Stripe. We accept Visa, Mastercard, and American Express.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cardholderName">Cardholder Name</Label>
-              <Input
-                id="cardholderName"
-                type="text"
-                placeholder="Name on card"
-                value={paymentFormData.cardholderName || ""}
-                onChange={(e) => handleInputChange("cardholderName", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cardNumber">Card Number</Label>
-              <Input
-                id="cardNumber"
-                type="text"
-                placeholder="1234 5678 9012 3456"
-                value={paymentFormData.cardNumber || ""}
-                onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                maxLength={19}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
-                <Input
-                  id="expiryDate"
-                  type="text"
-                  placeholder="MM/YY"
-                  value={paymentFormData.expiryDate || ""}
-                  onChange={(e) => handleInputChange("expiryDate", e.target.value)}
-                  maxLength={5}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cvv">CVV</Label>
-                <Input
-                  id="cvv"
-                  type="text"
-                  placeholder="123"
-                  value={paymentFormData.cvv || ""}
-                  onChange={(e) => handleInputChange("cvv", e.target.value)}
-                  maxLength={4}
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Shield className="h-4 w-4" />
-              <span>Your payment information is encrypted and secure</span>
-            </div>
-          </div>
+          <StripeCardElement
+            onPaymentSubmit={async (paymentData: any) => {
+              // Handle successful Stripe payment
+              toast({
+                title: "Payment Successful!",
+                description: "Your subscription has been activated.",
+              })
+              router.push("/dashboard")
+            }}
+            amount={Math.round((userSubscription?.plan?.price || 0) * 100)} // Convert to cents
+            currency="usd"
+            customerEmail={paymentFormData.customerEmail || ""}
+            customerName={paymentFormData.customerName || ""}
+            subscriptionId={userSubscription?.id || ""}
+            isProcessing={processingPayment}
+            setIsProcessing={setProcessingPayment}
+          />
         )
              case "mobile_money":
          return (
@@ -776,70 +733,341 @@ export default function SubscriptionPage() {
       case "card_payment":
         return (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cardholderName">Cardholder Name</Label>
-              <Input
-                id="cardholderName"
-                type="text"
-                placeholder="Name on card"
-                value={paymentFormData.cardholderName || ""}
-                onChange={(e) => handleInputChange("cardholderName", e.target.value)}
-              />
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                <span className="font-semibold text-blue-800">Card Payment</span>
+              </div>
+              <p className="text-sm text-blue-700">
+                Pay securely with your credit or debit card. We support Visa, Mastercard, American Express, Discover, and more.
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cardNumber">Card Number</Label>
-              <Input
-                id="cardNumber"
-                type="text"
-                placeholder="1234 5678 9012 3456"
-                value={paymentFormData.cardNumber || ""}
-                onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                maxLength={19}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+            
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Label htmlFor="cardNumber">Card Number</Label>
+                <div className="relative">
+                  <Input
+                    id="cardNumber"
+                    type="text"
+                    placeholder="1234 5678 9012 3456"
+                    value={paymentFormData.cardNumber || ""}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\s/g, '')
+                      
+                      // Use utility function for card type detection
+                      const cardTypeInfo = detectCardType(value)
+                      const cardType = cardTypeInfo?.type || ''
+                      
+                      // Format card number based on detected type
+                      const formatted = cardTypeInfo ? 
+                        value.replace(/(\d{4})(?=\d)/g, '$1 ') : 
+                        value.replace(/(\d{4})(?=\d)/g, '$1 ')
+                      
+                      handleInputChange("cardNumber", formatted)
+                      handleInputChange("cardType", cardType)
+                    }}
+                    maxLength={19}
+                    className="pr-12"
+                  />
+                  {paymentFormData.cardType && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded border shadow-sm">
+                        <CreditCard className={`h-4 w-4 ${getCardTypeColor(paymentFormData.cardType)}`} />
+                        <span className="text-xs font-medium text-gray-700">
+                          {paymentFormData.cardType}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {paymentFormData.cardType && (
+                  <p className="text-xs text-green-600 flex items-center space-x-1">
+                    <Shield className="h-3 w-3" />
+                    <span>Detected: {paymentFormData.cardType}</span>
+                  </p>
+                )}
+                {paymentFormData.cardNumber && !paymentFormData.cardType && (
+                  <p className="text-xs text-orange-600 flex items-center space-x-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>Card type not recognized</span>
+                  </p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Input
+                    id="expiryDate"
+                    type="text"
+                    placeholder="MM/YY"
+                    value={paymentFormData.expiryDate || ""}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, '')
+                      if (value.length >= 2) {
+                        value = value.slice(0, 2) + '/' + value.slice(2, 4)
+                      }
+                      handleInputChange("expiryDate", value)
+                    }}
+                    maxLength={5}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="cvv">CVV</Label>
+                  <div className="relative">
+                    <Input
+                      id="cvv"
+                      type="password"
+                      placeholder="•••"
+                      value={paymentFormData.cvv || ""}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '')
+                        // Use utility function to get CVV length based on card type
+                        const maxLength = paymentFormData.cardType === 'American Express' ? 4 : 3
+                        if (value.length <= maxLength) {
+                          handleInputChange("cvv", value)
+                        }
+                      }}
+                      maxLength={4}
+                      className="pr-10"
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Lock className="h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 flex items-center space-x-1">
+                    <Shield className="h-3 w-3" />
+                    <span>CVV is masked for security • {paymentFormData.cardType === 'American Express' ? '4 digits' : '3 digits'}</span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cardholderName">Cardholder Name</Label>
                 <Input
-                  id="expiryDate"
+                  id="cardholderName"
                   type="text"
-                  placeholder="MM/YY"
-                  value={paymentFormData.expiryDate || ""}
-                  onChange={(e) => handleInputChange("expiryDate", e.target.value)}
-                  maxLength={5}
+                  placeholder="John Doe"
+                  value={paymentFormData.cardholderName || ""}
+                  onChange={(e) => handleInputChange("cardholderName", e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cvv">CVV</Label>
-                <Input
-                  id="cvv"
-                  type="text"
-                  placeholder="123"
-                  value={paymentFormData.cvv || ""}
-                  onChange={(e) => handleInputChange("cvv", e.target.value)}
-                  maxLength={4}
-                />
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
+                <span className="text-lg font-bold text-gray-900">
+                  ${formatPrice(userSubscription.plan?.price)}
+                </span>
               </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-600">Currency:</span>
+                <span className="text-lg font-bold text-gray-600">USD</span>
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <Shield className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-green-800">Secure Payment</h4>
+                  <ul className="text-sm text-green-700 mt-2 space-y-1">
+                    <li>• Your card details are encrypted and secure</li>
+                    <li>• We support Visa, Mastercard, American Express, Discover, and more</li>
+                    <li>• 3D Secure authentication may be required</li>
+                    <li>• Payment processing is PCI DSS compliant</li>
+                    <li>• No card details are stored on our servers</li>
+                    <li>• CVV is masked for enhanced security</li>
+                    <li>• Real-time card type detection for better UX</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+              <Shield className="h-4 w-4" />
+              <span>Secure card payment processing</span>
             </div>
           </div>
         )
 
       case "google_pay":
+        return (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <CreditCard className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-800">Google Pay</span>
+              </div>
+              <p className="text-sm text-green-700">
+                Pay securely with Google Pay. You'll be redirected to complete your payment securely.
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
+                <span className="text-lg font-bold text-gray-900">
+                  ${formatPrice(userSubscription.plan?.price)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-600">Currency:</span>
+                <span className="text-lg font-bold text-green-600">USD</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-blue-800">Payment Instructions</h4>
+                  <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                    <li>• Click "Pay Now" to proceed with Google Pay</li>
+                    <li>• You'll be redirected to Google Pay's secure payment page</li>
+                    <li>• Complete your payment using your Google Pay account</li>
+                    <li>• Payment will be processed securely</li>
+                    <li>• You'll be redirected back after successful payment</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+              <Shield className="h-4 w-4" />
+              <span>Secure Google Pay payment processing</span>
+            </div>
+          </div>
+        )
+
       case "apple_pay":
+        return (
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <CreditCard className="h-5 w-5 text-gray-600" />
+                <span className="font-semibold text-gray-800">Apple Pay</span>
+              </div>
+              <p className="text-sm text-gray-700">
+                Pay securely with Apple Pay. You'll be redirected to complete your payment securely.
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
+                <span className="text-lg font-bold text-gray-900">
+                  ${formatPrice(userSubscription.plan?.price)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-600">Currency:</span>
+                <span className="text-lg font-bold text-gray-600">USD</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-blue-800">Payment Instructions</h4>
+                  <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                    <li>• Click "Pay Now" to proceed with Apple Pay</li>
+                    <li>• You'll be redirected to Apple Pay's secure payment page</li>
+                    <li>• Complete your payment using your Apple Pay account</li>
+                    <li>• Payment will be processed securely</li>
+                    <li>• You'll be redirected back after successful payment</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+              <Shield className="h-4 w-4" />
+              <span>Secure Apple Pay payment processing</span>
+            </div>
+          </div>
+        )
+
       case "opay":
         return (
-          <div className="text-center py-8">
-            <div className="flex items-center justify-center mb-4">
-              {selectedPaymentMethod === "google_pay" && <Wallet className="h-12 w-12 text-red-600" />}
-              {selectedPaymentMethod === "apple_pay" && <Apple className="h-12 w-12 text-gray-800" />}
-              {selectedPaymentMethod === "opay" && <Phone className="h-12 w-12 text-orange-600" />}
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Phone className="h-5 w-5 text-orange-600" />
+                <span className="font-semibold text-orange-800">OPay</span>
+              </div>
+              <p className="text-sm text-orange-700">
+                Pay securely with OPay wallet. <strong>Available exclusively for Nigerian users.</strong> You'll be redirected to complete your payment securely.
+              </p>
             </div>
-            <p className="text-gray-600 mb-4">
-              You'll be redirected to complete your payment securely.
-            </p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="+2348012345678"
+                value={paymentFormData.phoneNumber || ""}
+                onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                Enter your Nigerian phone number with country code (+234)
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
+                <span className="text-lg font-bold text-gray-900">
+                  ₦{formatPrice(userSubscription.plan?.price)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-600">Currency:</span>
+                <span className="text-lg font-bold text-orange-600">NGN (Nigerian Naira)</span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-blue-800">Payment Instructions</h4>
+                  <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                    <li>• Click "Pay Now" to proceed with OPay</li>
+                    <li>• You'll be redirected to OPay's secure payment page</li>
+                    <li>• Log into your OPay account to authorize the payment</li>
+                    <li>• Payment will be processed securely</li>
+                    <li>• You'll be redirected back after successful payment</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-yellow-800">Important Notice</h4>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    OPay is available exclusively for Nigerian users and transactions in Nigerian Naira (NGN) only. 
+                    Please ensure you have an active OPay wallet account.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
               <Shield className="h-4 w-4" />
-              <span>Secure payment processing</span>
+              <span>Secure OPay payment processing</span>
             </div>
           </div>
         )
@@ -955,6 +1183,35 @@ export default function SubscriptionPage() {
 
                 {selectedPaymentMethod && (
                   <div className="border-t pt-6">
+                    {/* Customer Information */}
+                    <div className="mb-6">
+                      <h3 className="font-semibold text-lg mb-4">Customer Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="customerName">Full Name</Label>
+                          <Input
+                            id="customerName"
+                            type="text"
+                            placeholder="Enter your full name"
+                            value={paymentFormData.customerName || `${userData?.first_name || ""} ${userData?.last_name || ""}`.trim() || ""}
+                            onChange={(e) => handleInputChange("customerName", e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="customerEmail">Email Address</Label>
+                          <Input
+                            id="customerEmail"
+                            type="email"
+                            placeholder="Enter your email address"
+                            value={paymentFormData.customerEmail || userData?.email || ""}
+                            onChange={(e) => handleInputChange("customerEmail", e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
                     <h3 className="font-semibold text-lg mb-4">Payment Details</h3>
                     {renderPaymentForm()}
                   </div>

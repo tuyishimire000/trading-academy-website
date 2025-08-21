@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle different payment methods
-    const plan = subscription.plan
+    const plan = (subscription as any).plan
     const currentDate = new Date()
     
     if (paymentMethod === 'mobile_money') {
@@ -145,6 +145,266 @@ export async function POST(request: NextRequest) {
         console.error("Bank transfer payment error:", error)
         return NextResponse.json({ 
           error: "Failed to process bank transfer payment" 
+        }, { status: 500 })
+      }
+    } else if (paymentMethod === 'google_pay') {
+      // For Google Pay payments, we need to process them through Flutterwave
+      try {
+        const { PaymentService } = await import("@/lib/services/payment")
+        
+        // Process the Google Pay payment
+        const result = await PaymentService.processGooglePay({
+          method: 'google_pay',
+          amount: plan.price,
+          currency: 'USD', // Google Pay typically uses USD
+          description: `Trading Academy Subscription - ${plan.display_name}`,
+          customerEmail: payload.email || '',
+          customerName: `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+          subscriptionId: subscription.id
+        })
+
+        if (result.success) {
+          // Google Pay payment initiated successfully
+          // The subscription will be activated via webhook when payment is confirmed
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            status: "pending",
+            transactionId: result.transactionId,
+            paymentUrl: result.paymentUrl,
+            subscription: {
+              id: subscription.id,
+              status: 'pending',
+              plan: {
+                name: plan.name,
+                display_name: plan.display_name,
+                price: plan.price,
+                billing_cycle: plan.billing_cycle
+              }
+            },
+            payment: {
+              method: paymentMethod,
+              initiated_at: currentDate
+            }
+          })
+        } else {
+          return NextResponse.json({ 
+            error: result.message || "Google Pay payment failed" 
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error("Google Pay payment error:", error)
+        return NextResponse.json({ 
+          error: "Failed to process Google Pay payment" 
+        }, { status: 500 })
+      }
+    } else if (paymentMethod === 'apple_pay') {
+      // For Apple Pay payments, we need to process them through Flutterwave
+      try {
+        const { PaymentService } = await import("@/lib/services/payment")
+        
+        // Process the Apple Pay payment
+        const result = await PaymentService.processApplePay({
+          method: 'apple_pay',
+          amount: plan.price,
+          currency: 'USD', // Apple Pay typically uses USD
+          description: `Trading Academy Subscription - ${plan.display_name}`,
+          customerEmail: payload.email || '',
+          customerName: `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+          subscriptionId: subscription.id
+        })
+
+        if (result.success) {
+          // Apple Pay payment initiated successfully
+          // The subscription will be activated via webhook when payment is confirmed
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            status: "pending",
+            transactionId: result.transactionId,
+            paymentUrl: result.paymentUrl,
+            subscription: {
+              id: subscription.id,
+              status: 'pending',
+              plan: {
+                name: plan.name,
+                display_name: plan.display_name,
+                price: plan.price,
+                billing_cycle: plan.billing_cycle
+              }
+            },
+            payment: {
+              method: paymentMethod,
+              initiated_at: currentDate
+            }
+          })
+        } else {
+          return NextResponse.json({ 
+            error: result.message || "Apple Pay payment failed" 
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error("Apple Pay payment error:", error)
+        return NextResponse.json({ 
+          error: "Failed to process Apple Pay payment" 
+        }, { status: 500 })
+      }
+    } else if (paymentMethod === 'opay') {
+      // For OPay payments, we need to process them through Flutterwave
+      try {
+        const { PaymentService } = await import("@/lib/services/payment")
+        
+        // Process the OPay payment
+        const result = await PaymentService.processOPay({
+          method: 'opay',
+          amount: plan.price,
+          currency: 'NGN', // OPay is only available for Nigerian Naira
+          description: `Trading Academy Subscription - ${plan.display_name}`,
+          customerEmail: payload.email || '',
+          customerName: `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+          phoneNumber: paymentData.phoneNumber || '',
+          subscriptionId: subscription.id
+        })
+
+        if (result.success) {
+          // OPay payment initiated successfully
+          // The subscription will be activated via webhook when payment is confirmed
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            status: "pending",
+            transactionId: result.transactionId,
+            paymentUrl: result.paymentUrl,
+            subscription: {
+              id: subscription.id,
+              status: 'pending',
+              plan: {
+                name: plan.name,
+                display_name: plan.display_name,
+                price: plan.price,
+                billing_cycle: plan.billing_cycle
+              }
+            },
+            payment: {
+              method: paymentMethod,
+              initiated_at: currentDate
+            }
+          })
+        } else {
+          return NextResponse.json({ 
+            error: result.message || "OPay payment failed" 
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error("OPay payment error:", error)
+        return NextResponse.json({ 
+          error: "Failed to process OPay payment" 
+        }, { status: 500 })
+      }
+    } else if (paymentMethod === 'card') {
+      // For card payments, we need to process them through Flutterwave
+      try {
+        const { PaymentService } = await import("@/lib/services/payment")
+        
+        // Process the card payment
+        const result = await PaymentService.processCard({
+          method: 'card',
+          amount: plan.price,
+          currency: 'USD', // Card payments typically use USD
+          description: `Trading Academy Subscription - ${plan.display_name}`,
+          customerEmail: payload.email || '',
+          customerName: `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+          phoneNumber: paymentData.phoneNumber || '',
+          cardDetails: paymentData.cardDetails,
+          subscriptionId: subscription.id
+        })
+
+        if (result.success) {
+          // Card payment initiated successfully
+          // The subscription will be activated via webhook when payment is confirmed
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            status: "pending",
+            transactionId: result.transactionId,
+            paymentUrl: result.paymentUrl,
+            subscription: {
+              id: subscription.id,
+              status: 'pending',
+              plan: {
+                name: plan.name,
+                display_name: plan.display_name,
+                price: plan.price,
+                billing_cycle: plan.billing_cycle
+              }
+            },
+            payment: {
+              method: paymentMethod,
+              initiated_at: currentDate
+            }
+          })
+        } else {
+          return NextResponse.json({ 
+            error: result.message || "Card payment failed" 
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error("Card payment error:", error)
+        return NextResponse.json({ 
+          error: "Failed to process card payment" 
+        }, { status: 500 })
+      }
+    } else if (paymentMethod === 'stripe') {
+      // For Stripe payments, we need to process them through Stripe
+      try {
+        const { PaymentService } = await import("@/lib/services/payment")
+        
+        // Process the Stripe payment
+        const result = await PaymentService.processStripe({
+          method: 'stripe',
+          amount: plan.price,
+          currency: 'USD', // Stripe payments typically use USD
+          description: `Trading Academy Subscription - ${plan.display_name}`,
+          customerEmail: payload.email || '',
+          customerName: `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+          subscriptionId: subscription.id
+        })
+
+        if (result.success) {
+          // Stripe payment initiated successfully
+          // The subscription will be activated via webhook when payment is confirmed
+          return NextResponse.json({
+            success: true,
+            message: result.message,
+            status: "pending",
+            transactionId: result.transactionId,
+            clientSecret: result.clientSecret,
+            requiresAction: result.requiresAction,
+            nextAction: result.nextAction,
+            subscription: {
+              id: subscription.id,
+              status: 'pending',
+              plan: {
+                name: plan.name,
+                display_name: plan.display_name,
+                price: plan.price,
+                billing_cycle: plan.billing_cycle
+              }
+            },
+            payment: {
+              method: paymentMethod,
+              initiated_at: currentDate
+            }
+          })
+        } else {
+          return NextResponse.json({ 
+            error: result.message || "Stripe payment failed" 
+          }, { status: 400 })
+        }
+      } catch (error) {
+        console.error("Stripe payment error:", error)
+        return NextResponse.json({ 
+          error: "Failed to process Stripe payment" 
         }, { status: 500 })
       }
     } else {

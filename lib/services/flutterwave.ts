@@ -33,6 +33,84 @@ export interface BankTransferChargeData {
   }
 }
 
+export interface GooglePayChargeData {
+  tx_ref: string
+  amount: number
+  currency: string
+  email: string
+  fullname: string
+  redirect_url: string
+  payment_options?: string
+  meta?: {
+    [key: string]: any
+  }
+}
+
+export interface ApplePayChargeData {
+  tx_ref: string
+  amount: number
+  currency: string
+  email: string
+  fullname: string
+  redirect_url: string
+  payment_options?: string
+  meta?: {
+    [key: string]: any
+  }
+}
+
+export interface OPayChargeData {
+  tx_ref: string
+  amount: string
+  currency: string
+  email: string
+  fullname: string
+  phone_number: string
+  redirect_url: string
+  meta?: {
+    [key: string]: any
+  }
+}
+
+export interface CardChargeData {
+  tx_ref: string
+  amount: number
+  currency: string
+  email: string
+  fullname: string
+  phone_number?: string
+  redirect_url: string
+  customer_id?: string
+  payment_method_id?: string
+  card?: {
+    encrypted_card_number: string
+    encrypted_expiry_month: string
+    encrypted_expiry_year: string
+    encrypted_cvv: string
+    nonce: string
+  }
+  meta?: {
+    [key: string]: any
+  }
+}
+
+export interface CustomerData {
+  email: string
+  name: string
+  phone_number?: string
+}
+
+export interface PaymentMethodData {
+  type: string
+  card?: {
+    encrypted_card_number: string
+    encrypted_expiry_month: string
+    encrypted_expiry_year: string
+    encrypted_cvv: string
+    nonce: string
+  }
+}
+
 export interface FlutterwaveResponse {
   status: string
   message: string
@@ -61,6 +139,8 @@ export interface FlutterwaveResponse {
       email: string
       created_at: string
     }
+    customer_id?: string
+    payment_method_id?: string
     meta: {
       [key: string]: any
     }
@@ -69,6 +149,17 @@ export interface FlutterwaveResponse {
     charge_response: {
       [key: string]: any
     }
+    auth_url?: string
+    transfer_details?: {
+      bank_name: string
+      account_number: string
+      account_name: string
+      reference: string
+      expires_at: string
+    }
+  }
+  meta?: {
+    [key: string]: any
   }
 }
 
@@ -128,6 +219,158 @@ class FlutterwaveService {
     } catch (error) {
       console.error('Flutterwave Bank Transfer API Error:', error)
       throw new Error('Failed to initiate bank transfer payment')
+    }
+  }
+
+  /**
+   * Initialize a Google Pay payment
+   */
+  async initiateGooglePayPayment(data: GooglePayChargeData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/charges?type=googlepay`,
+        {
+          ...data,
+          payment_type: 'googlepay',
+          payment_options: data.payment_options || 'googlepay'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave Google Pay API Error:', error)
+      throw new Error('Failed to initiate Google Pay payment')
+    }
+  }
+
+  /**
+   * Initialize an Apple Pay payment
+   */
+  async initiateApplePayPayment(data: ApplePayChargeData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/charges?type=applepay`,
+        {
+          ...data,
+          payment_type: 'applepay',
+          payment_options: data.payment_options || 'applepay'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave Apple Pay API Error:', error)
+      throw new Error('Failed to initiate Apple Pay payment')
+    }
+  }
+
+  /**
+   * Initialize an OPay payment
+   */
+  async initiateOPayPayment(data: OPayChargeData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/charges?type=opay`,
+        {
+          ...data,
+          payment_type: 'opay'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave OPay API Error:', error)
+      throw new Error('Failed to initiate OPay payment')
+    }
+  }
+
+  /**
+   * Create a customer
+   */
+  async createCustomer(data: CustomerData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/customers`,
+        data,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave Create Customer Error:', error)
+      throw new Error('Failed to create customer')
+    }
+  }
+
+  /**
+   * Create a payment method
+   */
+  async createPaymentMethod(data: PaymentMethodData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/payment-methods`,
+        data,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave Create Payment Method Error:', error)
+      throw new Error('Failed to create payment method')
+    }
+  }
+
+  /**
+   * Initialize a card payment
+   */
+  async initiateCardPayment(data: CardChargeData): Promise<FlutterwaveResponse> {
+    try {
+      const response = await axios.post(
+        `${this.config.baseUrl}/v3/charges`,
+        {
+          ...data,
+          payment_type: 'card'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.config.secretKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Flutterwave Card Payment API Error:', error)
+      throw new Error('Failed to initiate card payment')
     }
   }
 

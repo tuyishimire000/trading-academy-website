@@ -28,10 +28,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid subscription plan" }, { status: 400 })
     }
 
-    // Check if user already exists
-    const existing = await User.findOne({ where: { email } })
-    if (existing) {
+    // Check if user already exists with same email
+    const existingEmail = await User.findOne({ where: { email } })
+    if (existingEmail) {
       return NextResponse.json({ error: "Email already registered" }, { status: 400 })
+    }
+
+    // Check if user already exists with same phone number
+    if (phoneNumber) {
+      const existingPhone = await User.findOne({ where: { phone_number: phoneNumber } })
+      if (existingPhone) {
+        return NextResponse.json({ error: "Phone number already registered" }, { status: 400 })
+      }
     }
 
     // Generate verification code

@@ -23,6 +23,26 @@ The Mobile Money payment method has been fully integrated with Flutterwave's API
 
 The Bank Transfer payment method has been fully integrated with Flutterwave's Pay With Bank Transfer (PWBT) API and is ready for production deployment.
 
+## ✅ **Google Pay Integration (Flutterwave) - COMPLETED**
+
+The Google Pay payment method has been fully integrated with Flutterwave's Google Pay API and is ready for production deployment. See [GOOGLE_PAY_SETUP.md](./GOOGLE_PAY_SETUP.md) for detailed setup instructions.
+
+## ✅ **Apple Pay Integration (Flutterwave) - COMPLETED**
+
+The Apple Pay payment method has been fully integrated with Flutterwave's Apple Pay API and is ready for production deployment. See [APPLE_PAY_SETUP.md](./APPLE_PAY_SETUP.md) for detailed setup instructions.
+
+## ✅ **OPay Integration (Flutterwave) - COMPLETED**
+
+The OPay payment method has been fully integrated with Flutterwave's OPay API and is ready for production deployment. **⚠️ Available exclusively for Nigerian users and NGN transactions only.** See [OPAY_SETUP.md](./OPAY_SETUP.md) for detailed setup instructions.
+
+## ✅ **Card Payment Integration (Flutterwave) - COMPLETED**
+
+The Card payment method has been fully integrated with Flutterwave's Card API and is ready for production deployment. Supports Visa, Mastercard, American Express, Verve, and Afrigo with PCI DSS compliance. See [CARD_PAYMENT_SETUP.md](./CARD_PAYMENT_SETUP.md) for detailed setup instructions.
+
+## ✅ **Stripe Payment Integration - COMPLETED**
+
+The Stripe payment method has been fully integrated using the official Stripe API and is ready for production deployment. Supports 135+ currencies, 3D Secure authentication, and comprehensive webhook handling. See [STRIPE_SETUP.md](./STRIPE_SETUP.md) for detailed setup instructions.
+
 ## Current Implementation
 
 The system uses a mock payment service (`lib/services/payment.ts`) that simulates payment processing. Each payment method has its own processing function that you can replace with real API calls.

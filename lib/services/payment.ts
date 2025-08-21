@@ -8,6 +8,14 @@ export interface PaymentData {
   description: string
   customerEmail: string
   customerName: string
+  phoneNumber?: string
+  cardDetails?: {
+    encryptedCardNumber: string
+    encryptedExpiryMonth: string
+    encryptedExpiryYear: string
+    encryptedCvv: string
+    nonce: string
+  }
   [key: string]: any // Additional payment-specific data
 }
 
@@ -37,6 +45,23 @@ export interface PaymentResult {
   transactionId?: string
   message: string
   error?: string
+  paymentUrl?: string | null
+  clientSecret?: string
+  requiresAction?: boolean
+  nextAction?: {
+    type: string
+    url?: string
+  }
+  txRef?: string
+  transferDetails?: {
+    bankName: string
+    accountNumber: string
+    accountName: string
+    reference: string
+    amount: number
+    currency: string
+    expiresAt: string
+  }
 }
 
 export class PaymentService {
@@ -72,28 +97,52 @@ export class PaymentService {
     }
   }
 
-  // Stripe Payment Processing
-  static async processStripe(data: StripePaymentData): Promise<PaymentResult> {
+  // Stripe Payment
+  static async processStripe(data: PaymentData): Promise<PaymentResult> {
     try {
-      // TODO: Integrate with Stripe API
-      // Example: Stripe Payment Intent API
+      // Import Stripe service dynamically to avoid SSR issues
+      const { stripeService } = await import('./stripe')
+      
       console.log("Processing Stripe payment:", {
         amount: data.amount,
         currency: data.currency,
-        cardholderName: data.cardholderName,
-        // Note: In real implementation, you would use Stripe Elements or create a PaymentMethod
-        // Never log actual card details in production
+        customerEmail: data.customerEmail,
+        customerName: data.customerName
       })
-      
-      // Simulate Stripe API call
-      await new Promise(resolve => setTimeout(resolve, 2500))
-      
-      return {
-        success: true,
-        transactionId: `stripe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        message: "Stripe payment processed successfully"
+
+      // Create payment intent with Stripe
+      const paymentIntentResult = await stripeService.createPaymentIntent({
+        amount: Math.round(data.amount * 100), // Convert to cents
+        currency: data.currency.toLowerCase(),
+        customerEmail: data.customerEmail,
+        customerName: data.customerName,
+        description: data.description,
+        metadata: {
+          subscription_id: data.subscriptionId,
+          payment_method: 'stripe',
+          customer_name: data.customerName
+        }
+      })
+
+      if (paymentIntentResult.success) {
+        return {
+          success: true,
+          transactionId: paymentIntentResult.paymentIntentId!,
+          message: paymentIntentResult.message,
+          paymentUrl: paymentIntentResult.nextAction?.url || null,
+          clientSecret: paymentIntentResult.clientSecret,
+          requiresAction: paymentIntentResult.requiresAction,
+          nextAction: paymentIntentResult.nextAction
+        }
+      } else {
+        return {
+          success: false,
+          message: paymentIntentResult.message,
+          error: paymentIntentResult.error || "Stripe payment failed"
+        }
       }
     } catch (error) {
+      console.error('Stripe payment error:', error)
       return {
         success: false,
         message: "Stripe payment failed",
@@ -208,16 +257,18 @@ export class PaymentService {
         return {
           success: true,
           transactionId: response.data.flw_ref,
-          message: "Bank transfer initiated successfully. Please use the provided account details to complete your payment.",
+          message: "Bank transfer initiated successfully. Please complete the transfer using the provided details.",
+          paymentUrl: null,
+          txRef: txRef,
           transferDetails: {
-            transferReference: transferDetails?.transfer_reference,
-            transferAccount: transferDetails?.transfer_account,
-            transferBank: transferDetails?.transfer_bank,
-            accountExpiration: transferDetails?.account_expiration,
-            transferNote: transferDetails?.transfer_note,
-            transferAmount: transferDetails?.transfer_amount
-          },
-          txRef: txRef
+            bankName: response.data.transfer_details?.bank_name || 'Unknown Bank',
+            accountNumber: response.data.transfer_details?.account_number || '',
+            accountName: response.data.transfer_details?.account_name || '',
+            reference: response.data.transfer_details?.reference || txRef,
+            amount: data.amount,
+            currency: data.currency,
+            expiresAt: response.data.transfer_details?.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          }
         }
       } else {
         return {
@@ -236,22 +287,96 @@ export class PaymentService {
     }
   }
 
-  // Card Payment (Visa, Mastercard, etc.)
-  static async processCardPayment(data: PaymentData): Promise<PaymentResult> {
+  // Card Payment
+  static async processCard(data: PaymentData): Promise<PaymentResult> {
     try {
-      // TODO: Integrate with card payment API
-      // Example: Stripe, Paystack, etc.
-      console.log("Processing Card Payment:", data)
+      // Import Flutterwave service dynamically to avoid SSR issues
+      const { flutterwaveService } = await import('./flutterwave')
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      console.log("Processing card payment:", {
+        amount: data.amount,
+        currency: data.currency,
+        customerEmail: data.customerEmail,
+        customerName: data.customerName
+      })
+
+      // Generate transaction reference
+      const txRef = flutterwaveService.generateTransactionRef()
       
-      return {
-        success: true,
-        transactionId: `CP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        message: "Card payment processed successfully"
+      // Step 1: Create customer
+      const customerResponse = await flutterwaveService.createCustomer({
+        email: data.customerEmail,
+        name: data.customerName,
+        phone_number: data.phoneNumber || ''
+      })
+
+      if (customerResponse.status !== 'success') {
+        return {
+          success: false,
+          message: "Failed to create customer",
+          error: customerResponse.message || "Customer creation failed"
+        }
+      }
+
+      const customerId = customerResponse.data.customer_id
+
+      // Step 2: Create payment method (if card details are provided)
+      let paymentMethodId: string | undefined
+      if (data.cardDetails) {
+        const paymentMethodResponse = await flutterwaveService.createPaymentMethod({
+          type: 'card',
+          card: {
+            encrypted_card_number: data.cardDetails.encryptedCardNumber,
+            encrypted_expiry_month: data.cardDetails.encryptedExpiryMonth,
+            encrypted_expiry_year: data.cardDetails.encryptedExpiryYear,
+            encrypted_cvv: data.cardDetails.encryptedCvv,
+            nonce: data.cardDetails.nonce
+          }
+        })
+
+        if (paymentMethodResponse.status === 'success') {
+          paymentMethodId = paymentMethodResponse.data.payment_method_id
+        }
+      }
+
+      // Step 3: Prepare Flutterwave card charge data
+      const chargeData = {
+        tx_ref: txRef,
+        amount: data.amount,
+        currency: data.currency,
+        email: data.customerEmail,
+        fullname: data.customerName,
+        phone_number: data.phoneNumber || '',
+        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success`,
+        customer_id: customerId,
+        payment_method_id: paymentMethodId,
+        meta: {
+          subscription_id: data.subscriptionId,
+          payment_method: 'card',
+          customer_name: data.customerName
+        }
+      }
+
+      // Step 4: Initiate card payment with Flutterwave
+      const response = await flutterwaveService.initiateCardPayment(chargeData)
+      
+      if (response.status === 'success') {
+        return {
+          success: true,
+          transactionId: response.data.flw_ref,
+          message: "Card payment initiated successfully. Please complete the payment on the next page.",
+          paymentUrl: response.data.auth_url || response.data.charge_response?.link || null,
+          txRef: txRef
+        }
+      } else {
+        return {
+          success: false,
+          message: response.message || "Card payment failed",
+          error: "Payment initiation failed"
+        }
       }
     } catch (error) {
+      console.error('Card payment error:', error)
       return {
         success: false,
         message: "Card payment failed",
@@ -263,18 +388,55 @@ export class PaymentService {
   // Google Pay
   static async processGooglePay(data: PaymentData): Promise<PaymentResult> {
     try {
-      // TODO: Integrate with Google Pay API
-      console.log("Processing Google Pay:", data)
+      // Import Flutterwave service dynamically to avoid SSR issues
+      const { flutterwaveService } = await import('./flutterwave')
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log("Processing Google Pay payment:", {
+        amount: data.amount,
+        currency: data.currency,
+        customerEmail: data.customerEmail,
+        customerName: data.customerName
+      })
+
+      // Generate transaction reference
+      const txRef = flutterwaveService.generateTransactionRef()
       
-      return {
-        success: true,
-        transactionId: `GP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        message: "Google Pay payment processed successfully"
+      // Prepare Flutterwave Google Pay charge data
+      const chargeData = {
+        tx_ref: txRef,
+        amount: data.amount,
+        currency: data.currency,
+        email: data.customerEmail,
+        fullname: data.customerName,
+        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success`,
+        payment_options: 'googlepay',
+        meta: {
+          subscription_id: data.subscriptionId,
+          payment_method: 'google_pay',
+          customer_name: data.customerName
+        }
+      }
+
+      // Initiate Google Pay payment with Flutterwave
+      const response = await flutterwaveService.initiateGooglePayPayment(chargeData)
+      
+      if (response.status === 'success') {
+        return {
+          success: true,
+          transactionId: response.data.flw_ref,
+          message: "Google Pay payment initiated successfully. Please complete the payment on the next page.",
+          paymentUrl: response.data.charge_response?.link || null,
+          txRef: txRef
+        }
+      } else {
+        return {
+          success: false,
+          message: response.message || "Google Pay payment failed",
+          error: "Payment initiation failed"
+        }
       }
     } catch (error) {
+      console.error('Google Pay payment error:', error)
       return {
         success: false,
         message: "Google Pay payment failed",
@@ -286,18 +448,55 @@ export class PaymentService {
   // Apple Pay
   static async processApplePay(data: PaymentData): Promise<PaymentResult> {
     try {
-      // TODO: Integrate with Apple Pay API
-      console.log("Processing Apple Pay:", data)
+      // Import Flutterwave service dynamically to avoid SSR issues
+      const { flutterwaveService } = await import('./flutterwave')
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log("Processing Apple Pay payment:", {
+        amount: data.amount,
+        currency: data.currency,
+        customerEmail: data.customerEmail,
+        customerName: data.customerName
+      })
+
+      // Generate transaction reference
+      const txRef = flutterwaveService.generateTransactionRef()
       
-      return {
-        success: true,
-        transactionId: `AP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        message: "Apple Pay payment processed successfully"
+      // Prepare Flutterwave Apple Pay charge data
+      const chargeData = {
+        tx_ref: txRef,
+        amount: data.amount,
+        currency: data.currency,
+        email: data.customerEmail,
+        fullname: data.customerName,
+        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success`,
+        payment_options: 'applepay',
+        meta: {
+          subscription_id: data.subscriptionId,
+          payment_method: 'apple_pay',
+          customer_name: data.customerName
+        }
+      }
+
+      // Initiate Apple Pay payment with Flutterwave
+      const response = await flutterwaveService.initiateApplePayPayment(chargeData)
+      
+      if (response.status === 'success') {
+        return {
+          success: true,
+          transactionId: response.data.flw_ref,
+          message: "Apple Pay payment initiated successfully. Please complete the payment on the next page.",
+          paymentUrl: response.data.auth_url || response.data.charge_response?.link || null,
+          txRef: txRef
+        }
+      } else {
+        return {
+          success: false,
+          message: response.message || "Apple Pay payment failed",
+          error: "Payment initiation failed"
+        }
       }
     } catch (error) {
+      console.error('Apple Pay payment error:', error)
       return {
         success: false,
         message: "Apple Pay payment failed",
@@ -309,18 +508,56 @@ export class PaymentService {
   // OPay
   static async processOPay(data: PaymentData): Promise<PaymentResult> {
     try {
-      // TODO: Integrate with OPay API
-      console.log("Processing OPay:", data)
+      // Import Flutterwave service dynamically to avoid SSR issues
+      const { flutterwaveService } = await import('./flutterwave')
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log("Processing OPay payment:", {
+        amount: data.amount,
+        currency: data.currency,
+        customerEmail: data.customerEmail,
+        customerName: data.customerName,
+        phoneNumber: data.phoneNumber
+      })
+
+      // Generate transaction reference
+      const txRef = flutterwaveService.generateTransactionRef()
       
-      return {
-        success: true,
-        transactionId: `OP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        message: "OPay payment processed successfully"
+      // Prepare Flutterwave OPay charge data
+      const chargeData = {
+        tx_ref: txRef,
+        amount: data.amount.toString(), // OPay requires amount as string
+        currency: 'NGN', // OPay is only available for Nigerian Naira
+        email: data.customerEmail,
+        fullname: data.customerName,
+        phone_number: data.phoneNumber || '',
+        redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success`,
+        meta: {
+          subscription_id: data.subscriptionId,
+          payment_method: 'opay',
+          customer_name: data.customerName
+        }
+      }
+
+      // Initiate OPay payment with Flutterwave
+      const response = await flutterwaveService.initiateOPayPayment(chargeData)
+      
+      if (response.status === 'success') {
+        return {
+          success: true,
+          transactionId: response.data.flw_ref,
+          message: "OPay payment initiated successfully. Please complete the payment on the next page.",
+          paymentUrl: response.data.auth_url || response.data.charge_response?.link || null,
+          txRef: txRef
+        }
+      } else {
+        return {
+          success: false,
+          message: response.message || "OPay payment failed",
+          error: "Payment initiation failed"
+        }
       }
     } catch (error) {
+      console.error('OPay payment error:', error)
       return {
         success: false,
         message: "OPay payment failed",
@@ -335,13 +572,13 @@ export class PaymentService {
       case "crypto":
         return this.processCrypto(data as CryptoPaymentData)
       case "stripe":
-        return this.processStripe(data as StripePaymentData)
+        return this.processStripe(data)
       case "mobile_money":
-        return this.processMobileMoney(data)
+        return this.processMobileMoney(data as MobileMoneyPaymentData)
       case "bank_transfer":
         return this.processBankTransfer(data)
       case "card_payment":
-        return this.processCardPayment(data)
+        return this.processCard(data)
       case "google_pay":
         return this.processGooglePay(data)
       case "apple_pay":
