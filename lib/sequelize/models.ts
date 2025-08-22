@@ -786,6 +786,45 @@ UserSubscription.init(
   { sequelize, modelName: "user_subscriptions", tableName: "user_subscriptions", timestamps: false }
 )
 
+// Event Participants
+interface EventParticipantAttributes {
+  id: string
+  event_id: string
+  user_id: string
+  status: string
+  registered_at: Date
+  created_at: Date
+  updated_at: Date
+}
+
+type EventParticipantCreation = Optional<
+  EventParticipantAttributes,
+  "id" | "status" | "registered_at" | "created_at" | "updated_at"
+>
+
+export class EventParticipant extends Model<EventParticipantAttributes, EventParticipantCreation> implements EventParticipantAttributes {
+  declare id: string
+  declare event_id: string
+  declare user_id: string
+  declare status: string
+  declare registered_at: Date
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+EventParticipant.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    event_id: { type: DataTypes.UUID, allowNull: false },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "registered" },
+    registered_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "event_participants", tableName: "event_participants", timestamps: false }
+)
+
 // Associations
 Course.belongsTo(CourseCategory, { foreignKey: "category_id", as: "category" })
 CourseCategory.hasMany(Course, { foreignKey: "category_id", as: "courses" })
@@ -798,6 +837,9 @@ UserProgress.belongsTo(Course, { foreignKey: "course_id", as: "course" })
 UserProgress.belongsTo(CourseModule, { foreignKey: "module_id", as: "module" })
 
 Event.belongsTo(User, { foreignKey: "instructor_id", as: "instructor" })
+Event.hasMany(EventParticipant, { foreignKey: "event_id", as: "participants" })
+EventParticipant.belongsTo(Event, { foreignKey: "event_id", as: "event" })
+EventParticipant.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
 Notification.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
@@ -857,6 +899,7 @@ SubscriptionPlan.hasMany(UserSubscription, { foreignKey: "plan_id", as: "subscri
 
 User.hasMany(UserProgress, { foreignKey: "user_id", as: "progress" })
 User.hasMany(Event, { foreignKey: "instructor_id", as: "events" })
+User.hasMany(EventParticipant, { foreignKey: "user_id", as: "eventParticipants" })
 User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" })
 User.hasMany(ForumPost, { foreignKey: "user_id", as: "posts" })
 User.hasMany(PortfolioPosition, { foreignKey: "user_id", as: "positions" })

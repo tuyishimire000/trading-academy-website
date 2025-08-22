@@ -69,7 +69,7 @@ export const EnhancedHero = ({ settings }: { settings: WebsiteSettings }) => {
             <Button 
               variant="outline" 
               size="lg" 
-              className="px-8 py-4 text-lg font-semibold border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50 rounded-full transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+              className="px-8 py-4 text-lg font-semibold border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50 rounded-full transition-all duration-300 hover:scale-105 backdrop-blur-sm bg-white/5"
             >
               Watch Demo
             </Button>

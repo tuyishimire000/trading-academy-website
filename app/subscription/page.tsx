@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +26,7 @@ import {
   Shield,
   Lock,
   ArrowLeft,
+  ArrowUp,
   Loader2,
   Coins,
   Copy,
@@ -128,7 +129,10 @@ export default function SubscriptionPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const [paymentFormData, setPaymentFormData] = useState<any>({})
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [upgradePlan, setUpgradePlan] = useState<any>(null)
+  const [isUpgrade, setIsUpgrade] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
 
   // Helper function to safely format price
@@ -187,10 +191,35 @@ export default function SubscriptionPage() {
       }
     }
 
+    const handleUpgradePlan = async () => {
+      const planId = searchParams.get('planId')
+      if (planId) {
+        try {
+          const response = await fetch("/api/subscription-plans")
+          if (response.ok) {
+            const data = await response.json()
+            const plan = data.plans.find((p: any) => p.id === planId)
+            if (plan) {
+              setUpgradePlan(plan)
+              setIsUpgrade(true)
+              toast({
+                title: "Upgrade Plan Selected",
+                description: `You're upgrading to ${plan.display_name} for $${plan.price}/${plan.billing_cycle}`,
+              })
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching upgrade plan:", error)
+        }
+      }
+    }
+
     fetchUserData().then(() => {
-      fetchUserSubscription()
+      fetchUserSubscription().then(() => {
+        handleUpgradePlan()
+      })
     })
-  }, [mounted, router])
+  }, [mounted, router, searchParams, toast])
 
   const handlePaymentMethodSelect = (methodId: string) => {
     setSelectedPaymentMethod(methodId)
@@ -210,7 +239,7 @@ export default function SubscriptionPage() {
       formattedValue = value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "$1/$2")
     }
 
-    setPaymentFormData(prev => ({
+    setPaymentFormData((prev: any) => ({
       ...prev,
       [field]: formattedValue
     }))
@@ -343,7 +372,7 @@ export default function SubscriptionPage() {
         
         // Validate CVV using utility function
         const cardTypeInfo = detectCardType(cardNumber)
-        if (!validateCVV(paymentFormData.cvv, cardTypeInfo)) {
+        if (!validateCVV(paymentFormData.cvv, cardTypeInfo || undefined)) {
           const expectedLength = cardTypeInfo?.cvvLength || 3
           toast({
             title: "Error",
@@ -572,7 +601,7 @@ export default function SubscriptionPage() {
                 variant: "destructive",
               })
             }}
-            amount={Math.round((userSubscription.plan?.price || 9.99) * 100)} // Convert to cents, fallback to $9.99
+            amount={Math.round((isUpgrade && upgradePlan ? upgradePlan.price : userSubscription?.plan?.price || 9.99) )} // Convert to cents, fallback to $9.99
             currency="usd"
             customerEmail={paymentFormData.customerEmail || userData?.email || ""}
             customerName={paymentFormData.customerName || `${userData?.first_name || ""} ${userData?.last_name || ""}`.trim() || ""}
@@ -584,7 +613,7 @@ export default function SubscriptionPage() {
       case "stripe":
         return (
           <StripeCardElement
-            onPaymentSubmit={async (paymentData: any) => {
+            onSuccess={async (paymentIntent: any) => {
               // Handle successful Stripe payment
               toast({
                 title: "Payment Successful!",
@@ -592,7 +621,14 @@ export default function SubscriptionPage() {
               })
               router.push("/dashboard")
             }}
-            amount={Math.round((userSubscription?.plan?.price || 0) * 100)} // Convert to cents
+            onError={(error: string) => {
+              toast({
+                title: "Payment Failed",
+                description: error,
+                variant: "destructive",
+              })
+            }}
+            amount={Math.round((isUpgrade && upgradePlan ? upgradePlan.price : userSubscription?.plan?.price || 0) * 100)} // Convert to cents
             currency="usd"
             customerEmail={paymentFormData.customerEmail || ""}
             customerName={paymentFormData.customerName || ""}
@@ -623,7 +659,7 @@ export default function SubscriptionPage() {
                    // Auto-fill country code and network based on provider
                    const provider = PAYMENT_METHODS_CONFIG.mobile_money.providers.find(p => p.id === value)
                    if (provider) {
-                     setPaymentFormData(prev => ({
+                     setPaymentFormData((prev: any) => ({
                        ...prev,
                        countryCode: provider.countryCode,
                        network: provider.network
@@ -860,7 +896,7 @@ export default function SubscriptionPage() {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
                 <span className="text-lg font-bold text-gray-900">
-                  ${formatPrice(userSubscription.plan?.price)}
+                  ${formatPrice(userSubscription?.plan?.price)}
                 </span>
               </div>
               
@@ -912,7 +948,7 @@ export default function SubscriptionPage() {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
                 <span className="text-lg font-bold text-gray-900">
-                  ${formatPrice(userSubscription.plan?.price)}
+                  ${formatPrice(userSubscription?.plan?.price)}
                 </span>
               </div>
               
@@ -962,7 +998,7 @@ export default function SubscriptionPage() {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
                 <span className="text-lg font-bold text-gray-900">
-                  ${formatPrice(userSubscription.plan?.price)}
+                  ${formatPrice(userSubscription?.plan?.price)}
                 </span>
               </div>
               
@@ -1026,7 +1062,7 @@ export default function SubscriptionPage() {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Amount to Pay:</span>
                 <span className="text-lg font-bold text-gray-900">
-                  ₦{formatPrice(userSubscription.plan?.price)}
+                  ₦{formatPrice(userSubscription?.plan?.price)}
                 </span>
               </div>
               
@@ -1227,18 +1263,36 @@ export default function SubscriptionPage() {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                                 <div className="flex justify-between items-center">
-                   <span className="text-gray-600">Plan:</span>
-                   <span className="font-semibold">{userSubscription.plan?.display_name || userSubscription.plan?.name || 'Unknown Plan'}</span>
-                 </div>
-                 <div className="flex justify-between items-center">
-                   <span className="text-gray-600">Billing Cycle:</span>
-                   <span className="font-semibold capitalize">{userSubscription.plan?.billing_cycle || 'monthly'}</span>
-                 </div>
-                                 <div className="flex justify-between items-center">
-                   <span className="text-gray-600">Status:</span>
-                   <span className="text-amber-600 font-semibold">Payment Required</span>
-                 </div>
+                {isUpgrade && upgradePlan && (
+                  <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ArrowUp className="h-4 w-4 text-amber-600" />
+                      <span className="font-semibold text-amber-800">Plan Upgrade</span>
+                    </div>
+                    <div className="text-sm text-amber-700">
+                      Upgrading from <strong>{userSubscription?.plan?.display_name || 'Current Plan'}</strong> to <strong>{upgradePlan.display_name}</strong>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Plan:</span>
+                  <span className="font-semibold">
+                    {isUpgrade && upgradePlan ? upgradePlan.display_name : (userSubscription?.plan?.display_name || userSubscription?.plan?.name || 'Unknown Plan')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Billing Cycle:</span>
+                  <span className="font-semibold capitalize">
+                    {isUpgrade && upgradePlan ? upgradePlan.billing_cycle : (userSubscription?.plan?.billing_cycle || 'monthly')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Status:</span>
+                  <span className="text-amber-600 font-semibold">
+                    {isUpgrade ? 'Upgrade Payment Required' : 'Payment Required'}
+                  </span>
+                </div>
                  {selectedPaymentMethod && (
                    <div className="flex justify-between items-center">
                      <span className="text-gray-600">Payment Method:</span>
@@ -1260,9 +1314,9 @@ export default function SubscriptionPage() {
                                  <div className="border-t pt-4">
                    <div className="flex justify-between items-center text-lg font-bold">
                      <span>Total:</span>
-                                           <span className="text-2xl text-amber-600">
-                        ${formatPrice(userSubscription.plan?.price)}
-                      </span>
+                     <span className="text-2xl text-amber-600">
+                       ${formatPrice(isUpgrade && upgradePlan ? upgradePlan.price : userSubscription?.plan?.price)}
+                     </span>
                    </div>
                  </div>
 
@@ -1277,10 +1331,10 @@ export default function SubscriptionPage() {
                       Processing Payment...
                     </>
                   ) : (
-                                         <>
-                       <Lock className="h-4 w-4 mr-2" />
-                       Pay ${formatPrice(userSubscription.plan?.price)}
-                     </>
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      Pay ${formatPrice(isUpgrade && upgradePlan ? upgradePlan.price : userSubscription?.plan?.price)}
+                    </>
                   )}
                 </Button>
 

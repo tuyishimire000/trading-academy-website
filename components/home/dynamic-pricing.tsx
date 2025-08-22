@@ -197,7 +197,7 @@ export function DynamicPricing() {
                         ? "bg-amber-500 hover:bg-amber-600"
                         : plan.name === "elite"
                           ? "bg-yellow-500 hover:bg-yellow-600 text-black"
-                          : "bg-transparent"
+                          : "bg-gray-800 hover:bg-gray-900 text-white"
                     }`}
                     variant={plan.name === "basic" ? "outline" : "default"}
                   >

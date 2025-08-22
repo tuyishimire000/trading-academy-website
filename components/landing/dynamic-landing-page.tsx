@@ -414,7 +414,7 @@ export function DynamicLandingPage() {
                               </Button>
                             </Link>
                             <Link href="/login">
-                              <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10 font-semibold py-3 rounded-lg transition-all duration-300">
+                              <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10 font-semibold py-3 rounded-lg transition-all duration-300 bg-white/5">
                                 Login to Dashboard
                               </Button>
                             </Link>
@@ -570,7 +570,7 @@ function DefaultLandingPage() {
                 <Button 
                   variant="outline" 
                   size="lg" 
-                  className="px-8 py-4 text-lg font-semibold border-2 border-white/30 text-white hover:bg-white/10 rounded-full"
+                  className="px-8 py-4 text-lg font-semibold border-2 border-white/30 text-white hover:bg-white/10 rounded-full bg-white/5"
                 >
                   Watch Demo
                 </Button>

@@ -11,6 +11,18 @@ interface Event {
   end_time: string
   meeting_url: string
   required_plan: string
+  max_participants?: number
+  instructor?: {
+    id: string
+    first_name: string
+    last_name: string
+  }
+  participants: any[]
+  isUserRegistered: boolean
+  participantCount: number
+  hasAccess: boolean
+  userPlanLevel: number
+  eventPlanLevel: number
 }
 
 export function useEvents() {

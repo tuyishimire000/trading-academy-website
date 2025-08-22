@@ -10,6 +10,7 @@ import { UserHeader } from "@/components/dashboard/user-header"
 import { NotificationCenter } from "@/components/notifications/notification-center"
 import { ForumChat } from "@/components/community/forum-chat"
 import { PortfolioTracker } from "@/components/portfolio/portfolio-tracker"
+import { SubscriptionPlanDisplay } from "@/components/dashboard/subscription-plan-display"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +31,8 @@ import {
   FileText,
   Video,
   Headphones,
-  Star
+  Star,
+  Shield
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null)
   const [showNotifications, setShowNotifications] = useState(false)
   const [activeSection, setActiveSection] = useState('overview')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -104,6 +107,12 @@ export default function DashboardPage() {
       label: 'Portfolio',
       icon: BarChart3,
       description: 'Trading portfolio & analytics'
+    },
+    {
+      id: 'trading-tools',
+      label: 'Trading Tools',
+      icon: Target,
+      description: 'Trading journal & tools'
     },
     {
       id: 'community',
@@ -205,6 +214,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
               <div className="space-y-6">
+                <SubscriptionPlanDisplay />
                 <UpcomingEvents />
                 <Card>
                   <CardHeader>
@@ -265,6 +275,80 @@ export default function DashboardPage() {
           </div>
         )
 
+      case 'trading-tools':
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Trading Tools</h1>
+                <p className="text-gray-600">Professional tools to enhance your trading</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <FileText className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Trading Journal</h3>
+                  <p className="text-sm text-gray-600">Track and analyze your trades</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    Open Journal
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <BarChart3 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Performance Analytics</h3>
+                  <p className="text-sm text-gray-600">Advanced trading analytics</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    View Analytics
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <Target className="h-12 w-12 text-purple-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Risk Calculator</h3>
+                  <p className="text-sm text-gray-600">Calculate position sizing</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    Calculate Risk
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <TrendingUp className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Market Scanner</h3>
+                  <p className="text-sm text-gray-600">Find trading opportunities</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    Scan Markets
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <Calendar className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Economic Calendar</h3>
+                  <p className="text-sm text-gray-600">Track market events</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    View Calendar
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6 text-center">
+                  <Shield className="h-12 w-12 text-indigo-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Trade Protection</h3>
+                  <p className="text-sm text-gray-600">Set stop losses & targets</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    Manage Protection
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )
+
       case 'community':
         return (
           <div className="space-y-6">
@@ -297,11 +381,11 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Events & Webinars</h1>
-                <p className="text-gray-600">Join live trading sessions</p>
+                <p className="text-gray-600">Join live trading sessions and workshops</p>
               </div>
               <Button>
                 <Calendar className="h-4 w-4 mr-2" />
-                View Calendar
+                View All Events
               </Button>
             </div>
             <UpcomingEvents />
@@ -431,60 +515,99 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <UserHeader />
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 z-50">
+        <UserHeader />
+      </div>
       
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 min-h-screen">
-          <div className="p-6">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
-                <Star className="h-5 w-5 text-white" />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Fixed Sidebar */}
+        <div className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0 ${
+          sidebarCollapsed ? 'w-16' : 'w-64'
+        }`}>
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            {!sidebarCollapsed && (
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
+                  <Star className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-semibold">Trading Academy</h2>
               </div>
-              <h2 className="text-lg font-semibold">Trading Academy</h2>
-            </div>
-            
-            <nav className="space-y-2">
-              {navigationItems.map((item) => {
-                const Icon = item.icon
-                const isActive = activeSection === item.id
-                
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                      isActive 
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Icon className={`h-5 w-5 mr-3 ${isActive ? 'text-amber-600' : 'text-gray-500'}`} />
-                      <div>
-                        <div className="font-medium">{item.label}</div>
-                        <div className="text-xs text-gray-500">{item.description}</div>
+            )}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <svg
+                className={`h-4 w-4 text-gray-600 transition-transform ${
+                  sidebarCollapsed ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Scrollable Sidebar Content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4">
+              <nav className="space-y-2">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = activeSection === item.id
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveSection(item.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                        isActive 
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      <div className="flex items-center">
+                        <Icon className={`h-5 w-5 ${sidebarCollapsed ? '' : 'mr-3'} ${isActive ? 'text-amber-600' : 'text-gray-500'}`} />
+                        {!sidebarCollapsed && (
+                          <div>
+                            <div className="font-medium">{item.label}</div>
+                            <div className="text-xs text-gray-500">{item.description}</div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    {item.badge && (
-                      <Badge 
-                        variant={isActive ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </button>
-                )
-              })}
-            </nav>
+                      {!sidebarCollapsed && item.badge && (
+                        <Badge 
+                          variant={isActive ? "default" : "secondary"} 
+                          className="text-xs"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </button>
+                  )
+                })}
+              </nav>
+            </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
-          {renderContent()}
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="p-6">
+            {renderContent()}
+          </div>
         </div>
       </div>
 
