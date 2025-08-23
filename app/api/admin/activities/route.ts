@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { checkAdminAccess } from "@/lib/auth/admin"
-import { User, UserProgress, UserSubscription, Event, ForumPost, Course, SubscriptionPlan } from "@/lib/sequelize/models"
+import { User, UserCourseProgress, UserSubscription, Event, ForumPost, Course, SubscriptionPlan } from "@/lib/sequelize/models"
 import { Op } from "sequelize"
 
 export async function GET(request: Request) {
@@ -40,20 +40,20 @@ export async function GET(request: Request) {
     })
 
     // Recent course progress
-    const recentProgress = await UserProgress.findAll({
-      where: {
-        updated_at: {
-          [Op.gte]: sevenDaysAgo
+          const recentProgress = await UserCourseProgress.findAll({
+        where: {
+          last_accessed: {
+            [Op.gte]: sevenDaysAgo
+          },
+          progress_percentage: 100
         },
-        progress_percentage: 100
-      },
-      include: [
-        { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
-        { model: Course, as: 'course', attributes: ['title'] }
-      ],
-      order: [['updated_at', 'DESC']],
-      limit: 5
-    })
+        include: [
+          { model: User, as: 'user', attributes: ['first_name', 'last_name', 'email'] },
+          { model: Course, as: 'course', attributes: ['title'] }
+        ],
+        order: [['last_accessed', 'DESC']],
+        limit: 5
+      })
 
     recentProgress.forEach(progress => {
       activities.push({
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
         type: 'course_completed',
         title: 'Course completed',
         description: `${progress.User?.first_name || 'User'} completed ${progress.Course?.title}`,
-        timestamp: progress.updated_at,
+        timestamp: progress.last_accessed,
         user: progress.User?.email
       })
     })

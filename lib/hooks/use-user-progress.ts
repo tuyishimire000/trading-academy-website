@@ -35,22 +35,35 @@ export function useUserProgress() {
 
     const fetchProgress = async () => {
       try {
-        const res = await fetch("/api/user/progress")
-        if (!res.ok) throw new Error("Failed to fetch progress")
-        const json = await res.json()
-        const progressData = json.progress || []
+        // Fetch user progress
+        const progressRes = await fetch("/api/user/progress")
+        if (!progressRes.ok) throw new Error("Failed to fetch progress")
+        const progressJson = await progressRes.json()
+        const progressData = progressJson.progress || []
         setProgress(progressData)
 
+        // Fetch all courses (including locked ones)
+        const coursesRes = await fetch("/api/courses")
+        if (!coursesRes.ok) throw new Error("Failed to fetch courses")
+        const coursesJson = await coursesRes.json()
+        const allCourses = coursesJson.courses || []
+
+        // Calculate stats according to requirements
         const completed = progressData.filter((p: any) => p.status === "completed").length
         const inProgress = progressData.filter((p: any) => p.status === "in_progress").length
-        const total = progressData.length
-        const overall = total > 0 ? Math.round(progressData.reduce((acc: number, p: any) => acc + p.progress_percentage, 0) / total) : 0
+        const totalCourses = allCourses.length // All courses including locked ones
+        const startedCourses = progressData.filter((p: any) => p.status === "in_progress" || p.status === "completed")
+        const overallProgress = startedCourses.length > 0 
+          ? Math.round(startedCourses.reduce((acc: number, p: any) => acc + p.progress_percentage, 0) / startedCourses.length) 
+          : 0
+
+
 
         setStats({
           coursesCompleted: completed,
           coursesInProgress: inProgress,
-          totalCourses: total,
-          overallProgress: overall,
+          totalCourses: totalCourses,
+          overallProgress: overallProgress,
         })
       } catch (err) {
         console.error("Error fetching progress:", err)

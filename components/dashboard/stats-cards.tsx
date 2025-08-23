@@ -35,6 +35,8 @@ export function StatsCards() {
     return diffInDays <= 30 // Events in the next 30 days
   }).length
 
+
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
       <Card>
@@ -45,7 +47,7 @@ export function StatsCards() {
         <CardContent>
           <div className="text-lg sm:text-2xl font-bold">{stats.coursesCompleted}</div>
           <p className="text-xs text-muted-foreground">
-            {stats.coursesInProgress > 0 ? `${stats.coursesInProgress} in progress` : "Great progress!"}
+            {stats.coursesInProgress > 0 ? `${stats.coursesInProgress} in progress` : "All courses completed!"}
           </p>
         </CardContent>
       </Card>
@@ -68,7 +70,7 @@ export function StatsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-lg sm:text-2xl font-bold">{stats.overallProgress}%</div>
-          <p className="text-xs text-muted-foreground">Overall completion</p>
+          <p className="text-xs text-muted-foreground">Average progress</p>
         </CardContent>
       </Card>
 
@@ -79,7 +81,7 @@ export function StatsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-lg sm:text-2xl font-bold">{stats.totalCourses}</div>
-          <p className="text-xs text-muted-foreground">Enrolled courses</p>
+          <p className="text-xs text-muted-foreground">Available courses</p>
         </CardContent>
       </Card>
     </div>

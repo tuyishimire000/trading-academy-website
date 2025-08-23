@@ -280,55 +280,51 @@ CourseModule.init(
   { sequelize, modelName: "course_modules", tableName: "course_modules", timestamps: false }
 )
 
-// User Progress
-interface UserProgressAttributes {
+// User Course Progress
+interface UserCourseProgressAttributes {
   id: string
   user_id: string
   course_id: string
-  module_id: string | null
+  status: string
   progress_percentage: number
+  started_at: Date | null
   completed_at: Date | null
-  last_accessed_at: Date | null
-  created_at: Date
-  updated_at: Date
+  last_accessed: Date | null
 }
 
-type UserProgressCreation = Optional<
-  UserProgressAttributes,
+type UserCourseProgressCreation = Optional<
+  UserCourseProgressAttributes,
   | "id"
-  | "module_id"
+  | "status"
   | "progress_percentage"
+  | "started_at"
   | "completed_at"
-  | "last_accessed_at"
-  | "created_at"
-  | "updated_at"
+  | "last_accessed"
 >
 
-export class UserProgress extends Model<UserProgressAttributes, UserProgressCreation> implements UserProgressAttributes {
+export class UserCourseProgress extends Model<UserCourseProgressAttributes, UserCourseProgressCreation> implements UserCourseProgressAttributes {
   declare id: string
   declare user_id: string
   declare course_id: string
-  declare module_id: string | null
+  declare status: string
   declare progress_percentage: number
+  declare started_at: Date | null
   declare completed_at: Date | null
-  declare last_accessed_at: Date | null
-  declare created_at: Date
-  declare updated_at: Date
+  declare last_accessed: Date | null
 }
 
-UserProgress.init(
+UserCourseProgress.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID, allowNull: false },
     course_id: { type: DataTypes.UUID, allowNull: false },
-    module_id: { type: DataTypes.UUID, allowNull: true },
-    progress_percentage: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
+    status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'not_started' },
+    progress_percentage: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    started_at: { type: DataTypes.DATE, allowNull: true },
     completed_at: { type: DataTypes.DATE, allowNull: true },
-    last_accessed_at: { type: DataTypes.DATE, allowNull: true },
-    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    last_accessed: { type: DataTypes.DATE, allowNull: true },
   },
-  { sequelize, modelName: "user_progress", tableName: "user_progress", timestamps: false }
+  { sequelize, modelName: "user_course_progress", tableName: "user_course_progress", timestamps: false }
 )
 
 // Events
@@ -832,9 +828,8 @@ CourseCategory.hasMany(Course, { foreignKey: "category_id", as: "courses" })
 CourseModule.belongsTo(Course, { foreignKey: "course_id", as: "course" })
 Course.hasMany(CourseModule, { foreignKey: "course_id", as: "modules" })
 
-UserProgress.belongsTo(User, { foreignKey: "user_id", as: "user" })
-UserProgress.belongsTo(Course, { foreignKey: "course_id", as: "course" })
-UserProgress.belongsTo(CourseModule, { foreignKey: "module_id", as: "module" })
+UserCourseProgress.belongsTo(User, { foreignKey: "user_id", as: "user" })
+UserCourseProgress.belongsTo(Course, { foreignKey: "course_id", as: "course" })
 
 Event.belongsTo(User, { foreignKey: "instructor_id", as: "instructor" })
 Event.hasMany(EventParticipant, { foreignKey: "event_id", as: "participants" })
@@ -893,11 +888,110 @@ WebsiteSettings.init(
   { sequelize, modelName: "website_settings", tableName: "website_settings", timestamps: false }
 )
 
+// Platform Social Links
+interface PlatformSocialLinksAttributes {
+  id: string
+  platform: string // 'discord', 'instagram', 'twitter', 'youtube', 'tiktok'
+  name: string // Display name for the link
+  url: string
+  description: string | null
+  required_plan: string | null // For Discord servers - which plan is required to access
+  is_active: boolean
+  sort_order: number
+  created_at: Date
+  updated_at: Date
+}
+
+type PlatformSocialLinksCreation = Optional<
+  PlatformSocialLinksAttributes,
+  "id" | "description" | "required_plan" | "is_active" | "sort_order" | "created_at" | "updated_at"
+>
+
+export class PlatformSocialLinks
+  extends Model<PlatformSocialLinksAttributes, PlatformSocialLinksCreation>
+  implements PlatformSocialLinksAttributes
+{
+  declare id: string
+  declare platform: string
+  declare name: string
+  declare url: string
+  declare description: string | null
+  declare required_plan: string | null
+  declare is_active: boolean
+  declare sort_order: number
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+PlatformSocialLinks.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    platform: { type: DataTypes.STRING(50), allowNull: false },
+    name: { type: DataTypes.STRING(255), allowNull: false },
+    url: { type: DataTypes.TEXT, allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    required_plan: { type: DataTypes.STRING(50), allowNull: true },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    sort_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "platform_social_links", tableName: "platform_social_links", timestamps: false }
+)
+
+// Showcase Stories
+interface ShowcaseStoryAttributes {
+  id: string
+  title: string
+  caption: string | null
+  image_url: string
+  group_name: string | null // For grouping stories like Instagram
+  is_active: boolean
+  expires_at: Date
+  created_at: Date
+  updated_at: Date
+}
+
+type ShowcaseStoryCreation = Optional<
+  ShowcaseStoryAttributes,
+  "id" | "caption" | "group_name" | "is_active" | "created_at" | "updated_at"
+>
+
+export class ShowcaseStory
+  extends Model<ShowcaseStoryAttributes, ShowcaseStoryCreation>
+  implements ShowcaseStoryAttributes
+{
+  declare id: string
+  declare title: string
+  declare caption: string | null
+  declare image_url: string
+  declare group_name: string | null
+  declare is_active: boolean
+  declare expires_at: Date
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+ShowcaseStory.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    title: { type: DataTypes.STRING(255), allowNull: false },
+    caption: { type: DataTypes.TEXT, allowNull: true },
+    image_url: { type: DataTypes.TEXT, allowNull: false },
+    group_name: { type: DataTypes.STRING(100), allowNull: true },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    expires_at: { type: DataTypes.DATE, allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "showcase_stories", tableName: "showcase_stories", timestamps: false }
+)
+
 // Add missing associations
 User.hasMany(UserSubscription, { foreignKey: "user_id", as: "subscriptions" })
 SubscriptionPlan.hasMany(UserSubscription, { foreignKey: "plan_id", as: "subscriptions" })
 
-User.hasMany(UserProgress, { foreignKey: "user_id", as: "progress" })
+User.hasMany(UserCourseProgress, { foreignKey: "user_id", as: "progress" })
 User.hasMany(Event, { foreignKey: "instructor_id", as: "events" })
 User.hasMany(EventParticipant, { foreignKey: "user_id", as: "eventParticipants" })
 User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" })
@@ -906,8 +1000,8 @@ User.hasMany(PortfolioPosition, { foreignKey: "user_id", as: "positions" })
 User.hasMany(PortfolioTrade, { foreignKey: "user_id", as: "trades" })
 User.hasMany(UserAchievement, { foreignKey: "user_id", as: "achievements" })
 
-Course.hasMany(UserProgress, { foreignKey: "course_id", as: "progress" })
-CourseModule.hasMany(UserProgress, { foreignKey: "module_id", as: "progress" })
+Course.hasMany(UserCourseProgress, { foreignKey: "course_id", as: "progress" })
+// Note: UserCourseProgress doesn't have module_id, so we remove this association
 
 ForumCategory.hasMany(ForumPost, { foreignKey: "category_id", as: "posts" })
 Achievement.hasMany(UserAchievement, { foreignKey: "achievement_id", as: "userAchievements" })

@@ -4,7 +4,7 @@ import {
   User,
   Course,
   CourseModule,
-  UserProgress,
+  UserCourseProgress,
   Event,
   Notification,
   ForumPost,
@@ -79,10 +79,10 @@ export async function GET(request: NextRequest) {
       PortfolioTrade.count(),
 
       // User progress statistics
-      UserProgress.findAll({
+      UserCourseProgress.findAll({
         attributes: [
-          [UserProgress.sequelize.fn('AVG', UserProgress.sequelize.col('user_progress.progress_percentage')), 'avgProgress'],
-          [UserProgress.sequelize.fn('COUNT', UserProgress.sequelize.col('user_progress.id')), 'totalProgress']
+          [UserCourseProgress.sequelize.fn('AVG', UserCourseProgress.sequelize.col('user_course_progress.progress_percentage')), 'avgProgress'],
+          [UserCourseProgress.sequelize.fn('COUNT', UserCourseProgress.sequelize.col('user_course_progress.id')), 'totalProgress']
         ]
       }),
 
@@ -139,19 +139,19 @@ export async function GET(request: NextRequest) {
       }),
 
       // Monthly course participation data
-      UserProgress.findAll({
+      UserCourseProgress.findAll({
         attributes: [
-          [UserProgress.sequelize.fn('DATE_FORMAT', UserProgress.sequelize.col('user_progress.updated_at'), '%Y-%m'), 'month'],
-          [UserProgress.sequelize.fn('COUNT', UserProgress.sequelize.col('user_progress.id')), 'participations'],
-          [UserProgress.sequelize.fn('AVG', UserProgress.sequelize.col('user_progress.progress_percentage')), 'avgProgress']
+          [UserCourseProgress.sequelize.fn('DATE_FORMAT', UserCourseProgress.sequelize.col('user_course_progress.last_accessed'), '%Y-%m'), 'month'],
+          [UserCourseProgress.sequelize.fn('COUNT', UserCourseProgress.sequelize.col('user_course_progress.id')), 'participations'],
+          [UserCourseProgress.sequelize.fn('AVG', UserCourseProgress.sequelize.col('user_course_progress.progress_percentage')), 'avgProgress']
         ],
         where: {
-          updated_at: {
+          last_accessed: {
             [Op.gte]: sixMonthsAgo
           }
         },
-        group: [UserProgress.sequelize.fn('DATE_FORMAT', UserProgress.sequelize.col('user_progress.updated_at'), '%Y-%m')],
-        order: [[UserProgress.sequelize.fn('DATE_FORMAT', UserProgress.sequelize.col('user_progress.updated_at'), '%Y-%m'), 'ASC']]
+        group: [UserCourseProgress.sequelize.fn('DATE_FORMAT', UserCourseProgress.sequelize.col('user_course_progress.last_accessed'), '%Y-%m')],
+        order: [[UserCourseProgress.sequelize.fn('DATE_FORMAT', UserCourseProgress.sequelize.col('user_course_progress.last_accessed'), '%Y-%m'), 'ASC']]
       }),
 
       // Forum sentiment analysis (mock data for now, will be replaced with AI integration)

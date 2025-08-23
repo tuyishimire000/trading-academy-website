@@ -11,6 +11,10 @@ import { NotificationCenter } from "@/components/notifications/notification-cent
 import { ForumChat } from "@/components/community/forum-chat"
 import { PortfolioTracker } from "@/components/portfolio/portfolio-tracker"
 import { SubscriptionPlanDisplay } from "@/components/dashboard/subscription-plan-display"
+import { PartnershipProgram } from "@/components/dashboard/partnership-program"
+import { CoursesContent } from "@/components/dashboard/courses-content"
+import { ShowcaseStories } from "@/components/dashboard/showcase-stories"
+import { SocialMediaLinks } from "@/components/dashboard/social-media-links"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +36,10 @@ import {
   Video,
   Headphones,
   Star,
-  Shield
+  Shield,
+  Handshake,
+  Share2,
+  Users2
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -99,8 +106,7 @@ export default function DashboardPage() {
       id: 'courses',
       label: 'Courses',
       icon: BookOpen,
-      description: 'Your learning progress',
-      badge: '3 Active'
+      description: 'Your learning progress'
     },
     {
       id: 'portfolio',
@@ -138,6 +144,13 @@ export default function DashboardPage() {
       label: 'Resources',
       icon: FileText,
       description: 'Trading materials'
+    },
+    {
+      id: 'partnership',
+      label: 'Partnership Program',
+      icon: Handshake,
+      description: 'Referral & promotion programs',
+      badge: 'Earn'
     },
     {
       id: 'settings',
@@ -195,68 +208,20 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <CourseProgress />
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Latest Content</CardTitle>
-                    <CardDescription>New materials added this week</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8">
-                      <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-4">New content is added regularly</p>
-                      <Button className="bg-[#5865F2] hover:bg-[#4752C4]">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Join Discord
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CourseProgress onViewAllCourses={() => setActiveSection('courses')} />
+                <ShowcaseStories />
+                <SocialMediaLinks />
               </div>
               <div className="space-y-6">
                 <SubscriptionPlanDisplay />
                 <UpcomingEvents />
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Community Activity
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <Users className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-4">
-                        Join our Discord community to see the latest discussions.
-                      </p>
-                      <Button className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-sm">
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        Join Discord Server
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </div>
         )
 
       case 'courses':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">My Courses</h1>
-                <p className="text-gray-600">Track your learning progress</p>
-              </div>
-              <Button>
-                <BookOpen className="h-4 w-4 mr-2" />
-                Browse All Courses
-              </Button>
-            </div>
-            <CourseProgress />
-          </div>
-        )
+        return <CoursesContent />
 
       case 'portfolio':
         return (
@@ -426,6 +391,9 @@ export default function DashboardPage() {
             </div>
           </div>
         )
+
+      case 'partnership':
+        return <PartnershipProgram />
 
       case 'resources':
         return (

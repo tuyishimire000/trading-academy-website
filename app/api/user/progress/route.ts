@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { UserProgress, Course, CourseModule } from "@/lib/sequelize/models"
+import { UserCourseProgress, Course } from "@/lib/sequelize/models"
 import { verifyAuth } from "@/lib/auth/server"
 
 export async function GET(request: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const progress = await UserProgress.findAll({
+    const progress = await UserCourseProgress.findAll({
       where: {
         user_id: user.id
       },
@@ -18,17 +18,12 @@ export async function GET(request: NextRequest) {
           model: Course,
           as: 'course',
           attributes: ['id', 'title', 'description', 'thumbnail_url', 'difficulty_level', 'estimated_duration']
-        },
-        {
-          model: CourseModule,
-          as: 'module',
-          attributes: ['id', 'title', 'description', 'content_type', 'duration']
         }
       ],
-      order: [['updated_at', 'DESC']]
+      order: [['last_accessed', 'DESC']]
     })
 
-    return NextResponse.json(progress)
+    return NextResponse.json({ progress })
   } catch (error) {
     console.error('User progress fetch error:', error)
     return NextResponse.json(
@@ -48,26 +43,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { courseId, moduleId, progressPercentage } = body
 
-    const [progress, created] = await UserProgress.findOrCreate({
+    const [progress, created] = await UserCourseProgress.findOrCreate({
       where: {
         user_id: user.id,
-        course_id: courseId,
-        module_id: moduleId || null
+        course_id: courseId
       },
       defaults: {
         progress_percentage: progressPercentage,
-        last_accessed_at: new Date()
+        status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
+        last_accessed: new Date()
       }
     })
 
     if (!created) {
       await progress.update({
         progress_percentage: progressPercentage,
-        last_accessed_at: new Date()
+        status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
+        last_accessed: new Date()
       })
     }
 
-    return NextResponse.json(progress)
+    return NextResponse.json({ progress })
   } catch (error) {
     console.error('User progress update error:', error)
     return NextResponse.json(

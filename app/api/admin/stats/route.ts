@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { checkAdminAccess } from "@/lib/auth/admin"
-import { User, UserSubscription, Course, Event, SubscriptionPlan, CourseModule, ForumPost, UserProgress } from "@/lib/sequelize/models"
+import { User, UserSubscription, Course, Event, SubscriptionPlan, CourseModule, ForumPost, UserCourseProgress } from "@/lib/sequelize/models"
 import { Op } from "sequelize"
 
 export async function GET(request: Request) {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     const totalPosts = await ForumPost.count()
 
     // Calculate average progress from user progress
-    const userProgresses = await UserProgress.findAll({
+    const userProgresses = await UserCourseProgress.findAll({
       attributes: ['progress_percentage']
     })
     

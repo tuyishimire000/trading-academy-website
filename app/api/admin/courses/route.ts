@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { checkAdminAccess } from "@/lib/auth/admin"
-import { Course, CourseCategory, CourseModule, UserProgress } from "@/lib/sequelize/models"
+import { Course, CourseCategory, CourseModule, UserCourseProgress } from "@/lib/sequelize/models"
 import { Op } from "sequelize"
 
 export async function GET(request: NextRequest) {
@@ -57,16 +57,16 @@ export async function GET(request: NextRequest) {
     // Get enrollment statistics for each course
     const coursesWithStats = await Promise.all(
       courses.rows.map(async (course) => {
-        const enrollmentCount = await UserProgress.count({
-          where: { course_id: course.id }
-        })
+              const enrollmentCount = await UserCourseProgress.count({
+        where: { course_id: course.id }
+      })
 
-        const avgProgress = await UserProgress.findOne({
-          where: { course_id: course.id },
-          attributes: [
-            [UserProgress.sequelize.fn('AVG', UserProgress.sequelize.col('progress_percentage')), 'avgProgress']
-          ]
-        })
+      const avgProgress = await UserCourseProgress.findOne({
+        where: { course_id: course.id },
+        attributes: [
+          [UserCourseProgress.sequelize.fn('AVG', UserCourseProgress.sequelize.col('progress_percentage')), 'avgProgress']
+        ]
+      })
 
         return {
           ...course.toJSON(),
