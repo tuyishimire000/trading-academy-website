@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useUser } from "@/lib/hooks/use-user"
 import { useSubscription } from "@/lib/hooks/use-subscription"
-import { MessageCircle, LogOut, Crown, Star, ArrowUp, Check, X } from "lucide-react"
+import { MessageCircle, LogOut, Crown, Star, ArrowUp, Check, X, Lock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -29,6 +29,8 @@ export function UserHeader() {
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
+  const [discordLink, setDiscordLink] = useState<string | null>(null)
+  const [loadingDiscord, setLoadingDiscord] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -47,8 +49,42 @@ export function UserHeader() {
       }
     }
 
+    const fetchDiscordLink = async () => {
+      if (!subscription?.plan?.name) return
+      
+      setLoadingDiscord(true)
+      try {
+        const response = await fetch("/api/platform-social-links")
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data.links) {
+            // Find Discord link that matches user's current plan
+            const userPlan = subscription.plan.name
+            const matchingDiscordLink = data.data.links.find((link: any) => 
+              link.platform === 'discord' && link.required_plan === userPlan
+            )
+            
+            if (matchingDiscordLink) {
+              setDiscordLink(matchingDiscordLink.url)
+            } else {
+              // Fallback to free Discord link if no matching plan found
+              const freeDiscordLink = data.data.links.find((link: any) => 
+                link.platform === 'discord' && link.required_plan === 'free'
+              )
+              setDiscordLink(freeDiscordLink?.url || null)
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching Discord link:", error)
+      } finally {
+        setLoadingDiscord(false)
+      }
+    }
+
     fetchPlans()
-  }, [])
+    fetchDiscordLink()
+  }, [subscription?.plan?.name])
 
   const handleSignOut = async () => {
     await fetch("/api/auth/signout", { method: "POST" })
@@ -120,6 +156,14 @@ export function UserHeader() {
     router.push(`/subscription?planId=${planId}`)
     setShowUpgradeDialog(false)
   }
+
+  const handleDiscordClick = () => {
+    if (discordLink && currentPlanName !== "Free") {
+      window.open(discordLink, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const isFreePlan = currentPlanName === "Free"
 
   return (
     <header className="bg-white border-b">
@@ -224,9 +268,24 @@ export function UserHeader() {
             </div>
             
             <div className="flex space-x-2 w-full sm:w-auto">
-              <Button className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none text-sm">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Join Discord
+              <Button 
+                className={`flex-1 sm:flex-none text-sm ${
+                  isFreePlan 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+                onClick={handleDiscordClick}
+                disabled={isFreePlan || loadingDiscord}
+                title={isFreePlan ? "Upgrade to access VIP Discord" : "Join VIP Discord"}
+              >
+                {loadingDiscord ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : isFreePlan ? (
+                  <Lock className="h-4 w-4 mr-2" />
+                ) : (
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                )}
+                Join VIP Discord
               </Button>
               <Button variant="outline" size="sm" onClick={handleSignOut} className="bg-transparent">
                 <LogOut className="h-4 w-4" />

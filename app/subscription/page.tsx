@@ -31,7 +31,8 @@ import {
   Coins,
   Copy,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react"
 
 type PaymentMethod = {
@@ -131,6 +132,7 @@ export default function SubscriptionPage() {
   const [processingPayment, setProcessingPayment] = useState(false)
   const [upgradePlan, setUpgradePlan] = useState<any>(null)
   const [isUpgrade, setIsUpgrade] = useState(false)
+  const [isRenewal, setIsRenewal] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -193,6 +195,16 @@ export default function SubscriptionPage() {
 
     const handleUpgradePlan = async () => {
       const planId = searchParams.get('planId')
+      const renewalParam = searchParams.get('renewal')
+      
+      if (renewalParam === 'true') {
+        setIsRenewal(true)
+        toast({
+          title: "Renewal Process",
+          description: "Welcome back! Let's get your subscription renewed.",
+        })
+      }
+      
       if (planId) {
         try {
           const response = await fetch("/api/subscription-plans")
@@ -1127,9 +1139,9 @@ export default function SubscriptionPage() {
   if (!userSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading subscription details...</span>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading subscription details...</p>
         </div>
       </div>
     )
@@ -1141,8 +1153,15 @@ export default function SubscriptionPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Subscription Found</h2>
-          <p className="text-gray-600 mb-4">You don't have an active subscription plan.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Subscription Issue</h2>
+          <p className="text-gray-600 mb-4">
+            {userSubscription.status === 'expired' 
+              ? 'Your subscription has expired. Please renew to continue accessing premium features.'
+              : userSubscription.status === 'active'
+              ? 'Your subscription is active but there was an issue loading plan details.'
+              : 'There was an issue loading your subscription details.'
+            }
+          </p>
           <div className="space-x-4">
             <Link href="/dashboard">
               <Button variant="outline">
@@ -1150,11 +1169,10 @@ export default function SubscriptionPage() {
                 Back to Dashboard
               </Button>
             </Link>
-            <Link href="/signup">
-              <Button>
-                Choose a Plan
-              </Button>
-            </Link>
+            <Button onClick={() => window.location.reload()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </div>
       </div>
@@ -1171,8 +1189,15 @@ export default function SubscriptionPage() {
               Trading Academy
             </span>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Payment</h1>
-          <p className="text-gray-600">Choose your preferred payment method to activate your subscription</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isRenewal ? 'Renew Your Subscription' : 'Complete Your Payment'}
+          </h1>
+          <p className="text-gray-600">
+            {isRenewal 
+              ? 'Choose your preferred payment method to renew your subscription'
+              : 'Choose your preferred payment method to activate your subscription'
+            }
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -782,6 +782,81 @@ UserSubscription.init(
   { sequelize, modelName: "user_subscriptions", tableName: "user_subscriptions", timestamps: false }
 )
 
+// User Subscription History
+interface UserSubscriptionHistoryAttributes {
+  id: string
+  user_id: string
+  subscription_id: string
+  action_type: string // 'payment', 'renewal', 'upgrade', 'downgrade', 'cancellation'
+  previous_plan_id: string | null
+  new_plan_id: string
+  payment_method: string | null
+  payment_amount: number | null
+  payment_currency: string | null
+  payment_status: string | null // 'pending', 'completed', 'failed', 'refunded'
+  billing_cycle: string
+  transaction_id: string | null
+  gateway_reference: string | null
+  metadata: object | null
+  created_at: Date
+}
+
+type UserSubscriptionHistoryCreation = Optional<
+  UserSubscriptionHistoryAttributes,
+  | "id"
+  | "previous_plan_id"
+  | "payment_method"
+  | "payment_amount"
+  | "payment_currency"
+  | "payment_status"
+  | "transaction_id"
+  | "gateway_reference"
+  | "metadata"
+  | "created_at"
+>
+
+export class UserSubscriptionHistory
+  extends Model<UserSubscriptionHistoryAttributes, UserSubscriptionHistoryCreation>
+  implements UserSubscriptionHistoryAttributes
+{
+  declare id: string
+  declare user_id: string
+  declare subscription_id: string
+  declare action_type: string
+  declare previous_plan_id: string | null
+  declare new_plan_id: string
+  declare payment_method: string | null
+  declare payment_amount: number | null
+  declare payment_currency: string | null
+  declare payment_status: string | null
+  declare billing_cycle: string
+  declare transaction_id: string | null
+  declare gateway_reference: string | null
+  declare metadata: object | null
+  declare created_at: Date
+}
+
+UserSubscriptionHistory.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    subscription_id: { type: DataTypes.UUID, allowNull: false },
+    action_type: { type: DataTypes.STRING(50), allowNull: false },
+    previous_plan_id: { type: DataTypes.UUID, allowNull: true },
+    new_plan_id: { type: DataTypes.UUID, allowNull: false },
+    payment_method: { type: DataTypes.STRING(50), allowNull: true },
+    payment_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    payment_currency: { type: DataTypes.STRING(3), allowNull: true },
+    payment_status: { type: DataTypes.STRING(20), allowNull: true },
+    billing_cycle: { type: DataTypes.STRING(20), allowNull: false },
+    transaction_id: { type: DataTypes.STRING(255), allowNull: true },
+    gateway_reference: { type: DataTypes.STRING(255), allowNull: true },
+    metadata: { type: DataTypes.JSON, allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "user_subscription_history", tableName: "user_subscription_history", timestamps: false }
+)
+
 // Event Participants
 interface EventParticipantAttributes {
   id: string
@@ -851,6 +926,11 @@ UserAchievement.belongsTo(Achievement, { foreignKey: "achievement_id", as: "achi
 
 UserSubscription.belongsTo(User, { foreignKey: "user_id", as: "user" })
 UserSubscription.belongsTo(SubscriptionPlan, { foreignKey: "plan_id", as: "plan" })
+
+UserSubscriptionHistory.belongsTo(User, { foreignKey: "user_id", as: "user" })
+UserSubscriptionHistory.belongsTo(UserSubscription, { foreignKey: "subscription_id", as: "subscription" })
+UserSubscriptionHistory.belongsTo(SubscriptionPlan, { foreignKey: "new_plan_id", as: "newPlan" })
+UserSubscriptionHistory.belongsTo(SubscriptionPlan, { foreignKey: "previous_plan_id", as: "previousPlan" })
 
 // Website Settings
 interface WebsiteSettingsAttributes {
@@ -987,11 +1067,111 @@ ShowcaseStory.init(
   { sequelize, modelName: "showcase_stories", tableName: "showcase_stories", timestamps: false }
 )
 
+// Payment Methods
+interface PaymentMethodAttributes {
+  id: string
+  user_id: string
+  payment_type: string // 'card', 'bank', 'mobile_money', 'crypto', 'digital_wallet'
+  payment_provider: string // 'visa', 'mastercard', 'stripe', 'mtn', 'airtel', 'usdt', 'btc', 'google_pay', 'apple_pay', 'opay'
+  display_name: string // 'Visa ****0123', 'MTN +233241234567', 'USDT 0x1234...abcd'
+  masked_data: string // '**** **** **** 0123', '+233****4567', '0x1234...abcd'
+  is_default: boolean
+  is_active: boolean
+  metadata: object | null
+  created_at: Date
+  updated_at: Date
+}
+
+type PaymentMethodCreation = Optional<
+  PaymentMethodAttributes,
+  "id" | "is_default" | "is_active" | "metadata" | "created_at" | "updated_at"
+>
+
+export class PaymentMethod
+  extends Model<PaymentMethodAttributes, PaymentMethodCreation>
+  implements PaymentMethodAttributes
+{
+  declare id: string
+  declare user_id: string
+  declare payment_type: string
+  declare payment_provider: string
+  declare display_name: string
+  declare masked_data: string
+  declare is_default: boolean
+  declare is_active: boolean
+  declare metadata: object | null
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+PaymentMethod.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    payment_type: { type: DataTypes.STRING(50), allowNull: false },
+    payment_provider: { type: DataTypes.STRING(50), allowNull: false },
+    display_name: { type: DataTypes.STRING(100), allowNull: false },
+    masked_data: { type: DataTypes.STRING(255), allowNull: false },
+    is_default: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    metadata: { type: DataTypes.JSON, allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "payment_methods", tableName: "payment_methods", timestamps: false }
+)
+
+// User Module Progress
+interface UserModuleProgressAttributes {
+  id: string
+  user_id: string
+  course_id: string
+  module_id: string
+  is_completed: boolean
+  completed_at: Date | null
+  last_accessed: Date | null
+}
+
+type UserModuleProgressCreation = Optional<
+  UserModuleProgressAttributes,
+  | "id"
+  | "is_completed"
+  | "completed_at"
+  | "last_accessed"
+>
+
+export class UserModuleProgress extends Model<UserModuleProgressAttributes, UserModuleProgressCreation> implements UserModuleProgressAttributes {
+  declare id: string
+  declare user_id: string
+  declare course_id: string
+  declare module_id: string
+  declare is_completed: boolean
+  declare completed_at: Date | null
+  declare last_accessed: Date | null
+}
+
+UserModuleProgress.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    course_id: { type: DataTypes.UUID, allowNull: false },
+    module_id: { type: DataTypes.UUID, allowNull: false },
+    is_completed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    completed_at: { type: DataTypes.DATE, allowNull: true },
+    last_accessed: { type: DataTypes.DATE, allowNull: true },
+  },
+  { sequelize, modelName: "user_module_progress", tableName: "user_module_progress", timestamps: false }
+)
+
 // Add missing associations
 User.hasMany(UserSubscription, { foreignKey: "user_id", as: "subscriptions" })
+User.hasMany(UserSubscriptionHistory, { foreignKey: "user_id", as: "subscriptionHistory" })
+User.hasMany(PaymentMethod, { foreignKey: "user_id", as: "paymentMethods" })
 SubscriptionPlan.hasMany(UserSubscription, { foreignKey: "plan_id", as: "subscriptions" })
+UserSubscription.hasMany(UserSubscriptionHistory, { foreignKey: "subscription_id", as: "history" })
 
 User.hasMany(UserCourseProgress, { foreignKey: "user_id", as: "progress" })
+User.hasMany(UserModuleProgress, { foreignKey: "user_id", as: "moduleProgress" })
 User.hasMany(Event, { foreignKey: "instructor_id", as: "events" })
 User.hasMany(EventParticipant, { foreignKey: "user_id", as: "eventParticipants" })
 User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" })
@@ -1001,7 +1181,8 @@ User.hasMany(PortfolioTrade, { foreignKey: "user_id", as: "trades" })
 User.hasMany(UserAchievement, { foreignKey: "user_id", as: "achievements" })
 
 Course.hasMany(UserCourseProgress, { foreignKey: "course_id", as: "progress" })
-// Note: UserCourseProgress doesn't have module_id, so we remove this association
+Course.hasMany(UserModuleProgress, { foreignKey: "course_id", as: "moduleProgress" })
+CourseModule.hasMany(UserModuleProgress, { foreignKey: "module_id", as: "userProgress" })
 
 ForumCategory.hasMany(ForumPost, { foreignKey: "category_id", as: "posts" })
 Achievement.hasMany(UserAchievement, { foreignKey: "achievement_id", as: "userAchievements" })

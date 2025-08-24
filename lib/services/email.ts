@@ -1,191 +1,191 @@
 // Email Service for password reset functionality
 // Supports SMTP for sending emails
 
-import * as nodemailer from 'nodemailer'
+import nodemailer from "nodemailer"
 
-export interface EmailConfig {
-  host: string
-  port: number
-  secure: boolean // true for 465, false for other ports
-  auth: {
-    user: string
-    pass: string
-  }
-  from: string
-}
-
-export interface EmailMessage {
+interface EmailData {
   to: string
   subject: string
-  html: string
-  text?: string
+  template: string
+  data: Record<string, any>
 }
 
-export class EmailService {
-  private config: EmailConfig
-
-  constructor(config: EmailConfig) {
-    this.config = config
-  }
-
-  async sendEmail(message: EmailMessage): Promise<boolean> {
-    try {
-      // Create transporter for SMTP
-      const transporter = nodemailer.createTransport({
-        host: this.config.host,
-        port: this.config.port,
-        secure: this.config.secure,
-        auth: this.config.auth
-      })
-
-      // Send email
-      const info = await transporter.sendMail({
-        from: this.config.from,
-        to: message.to,
-        subject: message.subject,
-        html: message.html,
-        text: message.text
-      })
-
-      console.log('📧 Email sent successfully:', {
-        messageId: info.messageId,
-        to: message.to,
-        subject: message.subject,
-        from: this.config.from
-      })
-
-      return true
-    } catch (error) {
-      console.error('Email sending failed:', error)
-      return false
-    }
-  }
-
-  // Helper method to send password reset email
-  async sendPasswordResetEmail(email: string, verificationCode: string): Promise<boolean> {
-    const subject = 'Password Reset Verification Code - Trading Academy'
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #3b82f6;">Password Reset Verification</h2>
-        <p>Hello,</p>
-        <p>You have requested to reset your password for your Trading Academy account.</p>
-        <p>Use the verification code below to proceed with your password reset:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background-color: #f3f4f6; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; display: inline-block;">
-            <h3 style="color: #3b82f6; margin: 0; font-size: 24px; letter-spacing: 4px;">${verificationCode}</h3>
+// Email templates
+const emailTemplates = {
+  "subscription-expired": (data: any) => ({
+    subject: "Your Trading Academy Subscription Has Expired",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Subscription Expired</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Subscription Expired</h1>
+            <p>Trading Academy</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.firstName},</h2>
+            <p>Your <strong>${data.planName}</strong> subscription has expired on <strong>${data.expirationDate}</strong>.</p>
+            <p>We've automatically downgraded your account to our free plan to ensure you don't lose access to basic features.</p>
+            <p>To continue enjoying premium features and advanced trading tools, please renew your subscription:</p>
+            <div style="text-align: center;">
+              <a href="${data.renewalUrl}" class="button">Renew Subscription</a>
+            </div>
+            <p><strong>What happens now?</strong></p>
+            <ul>
+              <li>You still have access to basic courses and features</li>
+              <li>Premium courses and advanced tools are temporarily locked</li>
+              <li>Your progress and data are safely preserved</li>
+              <li>Renew anytime to restore full access</li>
+            </ul>
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            <p>Best regards,<br>The Trading Academy Team</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Trading Academy. All rights reserved.</p>
           </div>
         </div>
-        <p>Enter this code on the verification page to continue with your password reset.</p>
-        <p>This code will expire in 10 minutes for security reasons.</p>
-        <p>If you didn't request this password reset, please ignore this email.</p>
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-        <p style="color: #6b7280; font-size: 14px;">
-          This is an automated message from Trading Academy. Please do not reply to this email.
-        </p>
-      </div>
+      </body>
+      </html>
     `
-    const text = `
-      Password Reset Verification Code - Trading Academy
-      
-      Hello,
-      
-      You have requested to reset your password for your Trading Academy account.
-      
-      Your verification code is: ${verificationCode}
-      
-      Enter this code on the verification page to continue with your password reset.
-      
-      This code will expire in 10 minutes for security reasons.
-      
-      If you didn't request this password reset, please ignore this email.
-      
-      This is an automated message from Trading Academy. Please do not reply to this email.
-    `
+  }),
 
-    return await this.sendEmail({
-      to: email,
-      subject,
-      html,
-      text
-    })
-  }
-
-  // Helper method to send email verification
-  async sendEmailVerification(email: string, verificationCode: string, firstName: string): Promise<boolean> {
-    const subject = 'Email Verification - Trading Academy'
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #3b82f6;">Welcome to Trading Academy!</h2>
-        <p>Hello ${firstName},</p>
-        <p>Thank you for creating your Trading Academy account. To complete your registration, please verify your email address using the code below:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background-color: #f3f4f6; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; display: inline-block;">
-            <h3 style="color: #3b82f6; margin: 0; font-size: 24px; letter-spacing: 4px;">${verificationCode}</h3>
+  "subscription-expiring-soon": (data: any) => ({
+    subject: `Your Trading Academy subscription expires in ${data.daysUntilExpiration} days`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Subscription Expiring Soon</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          .warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Subscription Expiring Soon</h1>
+            <p>Trading Academy</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.firstName},</h2>
+            <div class="warning">
+              <p><strong>⚠️ Important:</strong> Your <strong>${data.planName}</strong> subscription will expire in <strong>${data.daysUntilExpiration} days</strong> on <strong>${data.expirationDate}</strong>.</p>
+            </div>
+            <p>Don't lose access to your premium features! Renew now to continue your trading journey without interruption.</p>
+            <div style="text-align: center;">
+              <a href="${data.renewalUrl}" class="button">Renew Now</a>
+            </div>
+            <p><strong>What you'll keep with renewal:</strong></p>
+            <ul>
+              <li>✅ All premium courses and advanced trading tools</li>
+              <li>✅ VIP Discord community access</li>
+              <li>✅ Live trading sessions and webinars</li>
+              <li>✅ Priority support and exclusive content</li>
+              <li>✅ Your learning progress and achievements</li>
+            </ul>
+            <p><strong>What happens if you don't renew:</strong></p>
+            <ul>
+              <li>❌ Access to premium courses will be locked</li>
+              <li>❌ VIP Discord access will be revoked</li>
+              <li>❌ Live sessions will no longer be available</li>
+              <li>❌ Your account will be downgraded to free plan</li>
+            </ul>
+            <p>Renew now to maintain uninterrupted access to all premium features!</p>
+            <p>Best regards,<br>The Trading Academy Team</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Trading Academy. All rights reserved.</p>
           </div>
         </div>
-        <p>Enter this code on the verification page to complete your registration and access your account.</p>
-        <p>This code will expire in 10 minutes for security reasons.</p>
-        <p>If you didn't create this account, please ignore this email.</p>
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-        <p style="color: #6b7280; font-size: 14px;">
-          This is an automated message from Trading Academy. Please do not reply to this email.
-        </p>
-      </div>
+      </body>
+      </html>
     `
-    const text = `
-      Email Verification - Trading Academy
-      
-      Hello ${firstName},
-      
-      Thank you for creating your Trading Academy account. To complete your registration, please verify your email address using the code below:
-      
-      Your verification code is: ${verificationCode}
-      
-      Enter this code on the verification page to complete your registration and access your account.
-      
-      This code will expire in 10 minutes for security reasons.
-      
-      If you didn't create this account, please ignore this email.
-      
-      This is an automated message from Trading Academy. Please do not reply to this email.
-    `
-
-    return await this.sendEmail({
-      to: email,
-      subject,
-      html,
-      text
-    })
-  }
-}
-
-// Factory function to create email service
-export function createEmailService(config: EmailConfig): EmailService {
-  return new EmailService(config)
-}
-
-// Default email service instance (configure via environment variables)
-const emailConfig = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
-  },
-  from: process.env.SMTP_FROM || 'noreply@tradingacademy.com'
-}
-
-// Debug logging in development
-if (process.env.NODE_ENV === 'development') {
-  console.log('📧 Email Configuration:', {
-    host: emailConfig.host,
-    port: emailConfig.port,
-    secure: emailConfig.secure,
-    user: emailConfig.auth.user,
-    pass: emailConfig.auth.pass ? '***' + emailConfig.auth.pass.slice(-4) : 'undefined',
-    from: emailConfig.from,
   })
 }
 
-export const defaultEmailService = createEmailService(emailConfig)
+// Create transporter
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  })
+}
+
+/**
+ * Send email using template
+ */
+export async function sendEmail(emailData: EmailData) {
+  try {
+    const template = emailTemplates[emailData.template as keyof typeof emailTemplates]
+    
+    if (!template) {
+      throw new Error(`Email template '${emailData.template}' not found`)
+    }
+
+    const { subject, html } = template(emailData.data)
+    
+    const transporter = createTransporter()
+    
+    const mailOptions = {
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: emailData.to,
+      subject: subject,
+      html: html,
+    }
+
+    const result = await transporter.sendMail(mailOptions)
+    console.log(`📧 Email sent successfully to ${emailData.to}:`, result.messageId)
+    
+    return result
+  } catch (error) {
+    console.error(`❌ Error sending email to ${emailData.to}:`, error)
+    throw error
+  }
+}
+
+/**
+ * Send test email
+ */
+export async function sendTestEmail(to: string) {
+  const testData = {
+    to,
+    subject: "Test Email from Trading Academy",
+    template: "subscription-expiring-soon",
+    data: {
+      firstName: "Test User",
+      planName: "Premium Plan",
+      expirationDate: new Date().toLocaleDateString(),
+      daysUntilExpiration: 5,
+      renewalUrl: `${process.env.NEXT_PUBLIC_APP_URL}/subscription`
+    }
+  }
+
+  return await sendEmail(testData)
+}

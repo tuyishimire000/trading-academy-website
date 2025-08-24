@@ -43,9 +43,10 @@ interface CoursesData {
 
 interface CourseProgressProps {
   onViewAllCourses?: () => void
+  onCourseClick?: (course: Course) => void
 }
 
-export function CourseProgress({ onViewAllCourses }: CourseProgressProps) {
+export function CourseProgress({ onViewAllCourses, onCourseClick }: CourseProgressProps) {
   const [coursesData, setCoursesData] = useState<CoursesData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false)
@@ -78,8 +79,12 @@ export function CourseProgress({ onViewAllCourses }: CourseProgressProps) {
       return
     }
     
-    // Navigate to course detail page
-    router.push(`/courses/${course.id}`)
+    // Use callback if provided, otherwise navigate to course detail page
+    if (onCourseClick) {
+      onCourseClick(course)
+    } else {
+      router.push(`/courses/${course.id}`)
+    }
   }
 
   const handleUpgrade = async (requiredPlan: string) => {

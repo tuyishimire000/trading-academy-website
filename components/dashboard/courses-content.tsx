@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { CoursePlayer } from "./course-player"
 
 interface Course {
   id: string
@@ -63,15 +64,27 @@ interface SubscriptionPlan {
   features: string[]
 }
 
-export function CoursesContent() {
+interface CoursesContentProps {
+  initialSelectedCourseId?: string | null
+  onCourseSelected?: (courseId: string | null) => void
+}
+
+export function CoursesContent({ initialSelectedCourseId, onCourseSelected }: CoursesContentProps) {
   const [coursesData, setCoursesData] = useState<CoursesData | null>(null)
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('progress')
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
   const [selectedCourseForUpgrade, setSelectedCourseForUpgrade] = useState<Course | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(initialSelectedCourseId || null)
   const router = useRouter()
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (initialSelectedCourseId && initialSelectedCourseId !== selectedCourseId) {
+      setSelectedCourseId(initialSelectedCourseId)
+    }
+  }, [initialSelectedCourseId, selectedCourseId])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -119,7 +132,17 @@ export function CoursesContent() {
     if (course.isLocked) {
       return
     }
-    router.push(`/courses/${course.id}`)
+    setSelectedCourseId(course.id)
+    if (onCourseSelected) {
+      onCourseSelected(course.id)
+    }
+  }
+
+  const handleBackToCourses = () => {
+    setSelectedCourseId(null)
+    if (onCourseSelected) {
+      onCourseSelected(null)
+    }
   }
 
   const getDifficultyColor = (level: string) => {
@@ -179,6 +202,16 @@ export function CoursesContent() {
   const completedCourses = courses.filter(course => 
     course.userProgress && course.userProgress.status === 'completed'
   )
+
+  // If a course is selected, show the course player
+  if (selectedCourseId) {
+    return (
+      <CoursePlayer 
+        courseId={selectedCourseId} 
+        onBack={handleBackToCourses}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">

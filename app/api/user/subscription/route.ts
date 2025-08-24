@@ -18,12 +18,44 @@ export async function GET() {
     // Look up the user's actual subscription
     const userSubscription = await UserSubscription.findOne({
       where: { user_id: payload.sub },
-      include: [{ model: SubscriptionPlan, as: 'plan' }],
+      include: [{ 
+        model: SubscriptionPlan, 
+        as: 'plan',
+        required: false // Make this optional to handle cases where plan might be missing
+      }],
       order: [['created_at', 'DESC']] // Get the most recent subscription
     })
 
     if (!userSubscription) {
       return NextResponse.json({ subscription: null })
+    }
+
+    // Add debugging for plan association issues
+    if (!userSubscription.plan && userSubscription.plan_id) {
+      console.warn(`Subscription ${userSubscription.id} has plan_id ${userSubscription.plan_id} but no plan association`)
+      
+      // Try to fetch the plan directly
+      const plan = await SubscriptionPlan.findByPk(userSubscription.plan_id)
+      if (plan) {
+        console.log(`Found plan ${plan.name} for subscription ${userSubscription.id}`)
+        return NextResponse.json({
+          subscription: {
+            id: userSubscription.id,
+            plan_id: userSubscription.plan_id,
+            status: userSubscription.status,
+            current_period_start: userSubscription.current_period_start,
+            current_period_end: userSubscription.current_period_end,
+            plan: {
+              id: plan.id,
+              name: plan.name,
+              display_name: plan.display_name,
+              price: Number(plan.price),
+              billing_cycle: plan.billing_cycle,
+              features: plan.features,
+            },
+          },
+        })
+      }
     }
 
     return NextResponse.json({

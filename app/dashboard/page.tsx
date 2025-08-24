@@ -15,6 +15,7 @@ import { PartnershipProgram } from "@/components/dashboard/partnership-program"
 import { CoursesContent } from "@/components/dashboard/courses-content"
 import { ShowcaseStories } from "@/components/dashboard/showcase-stories"
 import { SocialMediaLinks } from "@/components/dashboard/social-media-links"
+import { BillingContent } from "@/components/dashboard/billing-content"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -39,7 +40,8 @@ import {
   Shield,
   Handshake,
   Share2,
-  Users2
+  Users2,
+  CreditCard
 } from "lucide-react"
 
 export default function DashboardPage() {
@@ -48,6 +50,7 @@ export default function DashboardPage() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [activeSection, setActiveSection] = useState('overview')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -153,6 +156,12 @@ export default function DashboardPage() {
       badge: 'Earn'
     },
     {
+      id: 'billing',
+      label: 'Billing',
+      icon: CreditCard,
+      description: 'Payment history & invoices'
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: Settings,
@@ -208,7 +217,13 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <CourseProgress onViewAllCourses={() => setActiveSection('courses')} />
+                <CourseProgress 
+                  onViewAllCourses={() => setActiveSection('courses')} 
+                  onCourseClick={(course) => {
+                    setSelectedCourseId(course.id)
+                    setActiveSection('courses')
+                  }}
+                />
                 <ShowcaseStories />
                 <SocialMediaLinks />
               </div>
@@ -221,7 +236,12 @@ export default function DashboardPage() {
         )
 
       case 'courses':
-        return <CoursesContent />
+        return (
+          <CoursesContent 
+            initialSelectedCourseId={selectedCourseId}
+            onCourseSelected={setSelectedCourseId}
+          />
+        )
 
       case 'portfolio':
         return (
@@ -394,6 +414,9 @@ export default function DashboardPage() {
 
       case 'partnership':
         return <PartnershipProgram />
+
+      case 'billing':
+        return <BillingContent />
 
       case 'resources':
         return (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { UserCourseProgress, Course } from "@/lib/sequelize/models"
+import { UserCourseProgress, UserModuleProgress, Course, CourseModule } from "@/lib/sequelize/models"
 import { verifyAuth } from "@/lib/auth/server"
 
 export async function GET(request: NextRequest) {
@@ -41,29 +41,101 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { courseId, moduleId, progressPercentage } = body
+    const { courseId, moduleId, action, progressPercentage } = body
 
-    const [progress, created] = await UserCourseProgress.findOrCreate({
-      where: {
-        user_id: user.id,
-        course_id: courseId
-      },
-      defaults: {
-        progress_percentage: progressPercentage,
-        status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
-        last_accessed: new Date()
-      }
-    })
-
-    if (!created) {
-      await progress.update({
-        progress_percentage: progressPercentage,
-        status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
-        last_accessed: new Date()
+    if (action === 'complete_module' && moduleId) {
+      // Handle module completion
+      const [moduleProgress, created] = await UserModuleProgress.findOrCreate({
+        where: {
+          user_id: user.id,
+          course_id: courseId,
+          module_id: moduleId
+        },
+        defaults: {
+          is_completed: true,
+          completed_at: new Date(),
+          last_accessed: new Date()
+        }
       })
-    }
 
-    return NextResponse.json({ progress })
+      if (!created) {
+        await moduleProgress.update({
+          is_completed: true,
+          completed_at: new Date(),
+          last_accessed: new Date()
+        })
+      }
+
+      // Update overall course progress
+      const completedModules = await UserModuleProgress.count({
+        where: {
+          user_id: user.id,
+          course_id: courseId,
+          is_completed: true
+        }
+      })
+
+      const totalModules = await CourseModule.count({
+        where: {
+          course_id: courseId,
+          is_published: true
+        }
+      })
+
+      const newProgressPercentage = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0
+
+      const [courseProgress, courseCreated] = await UserCourseProgress.findOrCreate({
+        where: {
+          user_id: user.id,
+          course_id: courseId
+        },
+        defaults: {
+          progress_percentage: newProgressPercentage,
+          status: newProgressPercentage === 100 ? 'completed' : 'in_progress',
+          last_accessed: new Date()
+        }
+      })
+
+      if (!courseCreated) {
+        await courseProgress.update({
+          progress_percentage: newProgressPercentage,
+          status: newProgressPercentage === 100 ? 'completed' : 'in_progress',
+          last_accessed: new Date()
+        })
+      }
+
+      return NextResponse.json({ 
+        success: true,
+        moduleProgress,
+        courseProgress,
+        completedModules,
+        totalModules,
+        progressPercentage: newProgressPercentage
+      })
+    } else {
+      // Handle general progress update
+      const [progress, created] = await UserCourseProgress.findOrCreate({
+        where: {
+          user_id: user.id,
+          course_id: courseId
+        },
+        defaults: {
+          progress_percentage: progressPercentage || 0,
+          status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
+          last_accessed: new Date()
+        }
+      })
+
+      if (!created) {
+        await progress.update({
+          progress_percentage: progressPercentage || 0,
+          status: progressPercentage === 100 ? 'completed' : progressPercentage > 0 ? 'in_progress' : 'not_started',
+          last_accessed: new Date()
+        })
+      }
+
+      return NextResponse.json({ success: true, progress })
+    }
   } catch (error) {
     console.error('User progress update error:', error)
     return NextResponse.json(
