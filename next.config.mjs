@@ -22,6 +22,10 @@ const nextConfig = {
     },
     serverComponentsExternalPackages: ['mysql2', 'sequelize'],
   },
+  // Ensure API routes use Node.js runtime
+  serverRuntimeConfig: {
+    runtime: 'nodejs',
+  },
 }
 
 export default nextConfig

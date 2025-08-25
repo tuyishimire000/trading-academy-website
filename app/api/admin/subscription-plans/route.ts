@@ -1,10 +1,10 @@
+export const runtime = "nodejs"
+
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { verifyJwt } from "@/lib/auth/jwt"
 import { ensureDatabaseConnection } from "@/lib/sequelize/index"
 import { SubscriptionPlan } from "@/lib/sequelize/models"
-
-export const runtime = "nodejs"
 
 export async function GET() {
   try {

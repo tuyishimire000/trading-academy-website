@@ -1,10 +1,11 @@
+export const runtime = "nodejs"
+
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { verifyJwt } from "@/lib/auth/jwt"
 import { ensureDatabaseConnection } from "@/lib/sequelize/index"
 import { UserWallet } from "@/lib/sequelize/models"
 import { Op } from "sequelize"
-export const runtime = "nodejs"
 
 // PUT - Update wallet (rename, set as primary)
 export async function PUT(
