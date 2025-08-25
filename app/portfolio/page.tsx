@@ -1,5 +1,8 @@
 "use client"
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, Suspense } from "react"
 import { useAccount, useBalance } from "wagmi"
 import { ConnectButton } from "@rainbow-me/rainbowkit"

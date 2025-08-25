@@ -1,5 +1,8 @@
 "use client"
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from "react"
 import { Suspense } from "react"
 import { useRouter } from "next/navigation"
