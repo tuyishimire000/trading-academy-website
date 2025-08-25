@@ -1,9 +1,10 @@
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 import { type NextRequest, NextResponse } from "next/server"
 // Lazy imports to avoid bundling DB driver incorrectly
 import { setAuthCookie, signJwt } from "@/lib/auth/jwt"
 import { comparePassword } from "@/lib/auth/password"
-
-export const runtime = "nodejs"
 
 export async function POST(request: NextRequest) {
   try {

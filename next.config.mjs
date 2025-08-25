@@ -22,9 +22,28 @@ const nextConfig = {
     },
     serverComponentsExternalPackages: ['mysql2', 'sequelize'],
   },
-  // Ensure API routes use Node.js runtime
-  serverRuntimeConfig: {
-    runtime: 'nodejs',
+  // Force all API routes to be dynamic
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+    ]
+  },
+  // Ensure all API routes are treated as dynamic
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: '/api/:path*',
+      },
+    ]
   },
 }
 
