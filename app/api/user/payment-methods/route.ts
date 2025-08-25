@@ -1,3 +1,6 @@
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 import { NextRequest, NextResponse } from "next/server"
 import { verifyAuth } from "@/lib/auth/server"
 import { PaymentMethod } from "@/lib/sequelize/models"

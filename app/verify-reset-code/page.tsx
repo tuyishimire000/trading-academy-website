@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Mail, Smartphone } from "lucide-react"
 
-export default function VerifyResetCodePage() {
+function VerifyResetCodePageContent() {
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -197,5 +197,20 @@ export default function VerifyResetCodePage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function VerifyResetCodePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600">Loading...</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
+        </div>
+      </div>
+    }>
+      <VerifyResetCodePageContent />
+    </Suspense>
   )
 }

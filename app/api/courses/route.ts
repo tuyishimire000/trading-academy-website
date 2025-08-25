@@ -1,8 +1,9 @@
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 import { NextRequest, NextResponse } from "next/server"
 import { verifyAuth } from "@/lib/auth/server"
 import { Course, CourseCategory, CourseModule, UserCourseProgress, UserSubscription, SubscriptionPlan } from "@/lib/sequelize/models"
-
-export const runtime = "nodejs"
 
 export async function GET(request: NextRequest) {
   try {

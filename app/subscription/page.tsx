@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -122,7 +122,7 @@ const paymentMethods: PaymentMethod[] = [
   }
 ]
 
-export default function SubscriptionPage() {
+function SubscriptionPageContent() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null)
@@ -1389,5 +1389,20 @@ export default function SubscriptionPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading...</h2>
+        </div>
+      </div>
+    }>
+      <SubscriptionPageContent />
+    </Suspense>
   )
 }
