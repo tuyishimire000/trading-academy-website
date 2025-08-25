@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { CardDescription } from "@/components/ui/card"
 import { StatsCards } from "@/components/dashboard/stats-cards"
@@ -44,7 +45,7 @@ import {
   CreditCard
 } from "lucide-react"
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -593,5 +594,20 @@ export default function DashboardPage() {
         onClose={() => setShowNotifications(false)}
       />
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard...</h2>
+        </div>
+      </div>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   )
 }
