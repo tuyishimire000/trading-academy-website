@@ -10,6 +10,7 @@ import { useSubscription } from "@/lib/hooks/use-subscription"
 import { MessageCircle, LogOut, Crown, Star, ArrowUp, Check, X, Lock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useDisconnect } from "wagmi"
 
 interface SubscriptionPlan {
   id: string
@@ -32,6 +33,7 @@ export function UserHeader() {
   const [discordLink, setDiscordLink] = useState<string | null>(null)
   const [loadingDiscord, setLoadingDiscord] = useState(false)
   const router = useRouter()
+  const { disconnect } = useDisconnect()
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -87,6 +89,7 @@ export function UserHeader() {
   }, [subscription?.plan?.name])
 
   const handleSignOut = async () => {
+    // Sign out from the application
     await fetch("/api/auth/signout", { method: "POST" })
     router.push("/")
     router.refresh()

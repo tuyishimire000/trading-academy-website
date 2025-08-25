@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useDisconnect } from "wagmi"
 import {
   LayoutDashboard,
   Users,
@@ -34,8 +35,10 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { disconnect } = useDisconnect()
 
   const handleLogout = async () => {
+    // Sign out from the application
     await fetch("/api/auth/signout", { method: "POST" })
     router.push("/")
     router.refresh()

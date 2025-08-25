@@ -9,7 +9,7 @@ import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { UserHeader } from "@/components/dashboard/user-header"
 import { NotificationCenter } from "@/components/notifications/notification-center"
 import { ForumChat } from "@/components/community/forum-chat"
-import { PortfolioTracker } from "@/components/portfolio/portfolio-tracker"
+import Portfolio from "@/components/portfolio/multi-wallet-portfolio"
 import { SubscriptionPlanDisplay } from "@/components/dashboard/subscription-plan-display"
 import { PartnershipProgram } from "@/components/dashboard/partnership-program"
 import { CoursesContent } from "@/components/dashboard/courses-content"
@@ -243,22 +243,8 @@ export default function DashboardPage() {
           />
         )
 
-      case 'portfolio':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Portfolio Tracker</h1>
-                <p className="text-gray-600">Monitor your trading performance</p>
-              </div>
-              <Button>
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Add Trade
-              </Button>
-            </div>
-            <PortfolioTracker />
-          </div>
-        )
+              case 'portfolio':
+          return <Portfolio />
 
       case 'trading-tools':
         return (

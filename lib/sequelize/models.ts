@@ -1185,7 +1185,59 @@ Course.hasMany(UserModuleProgress, { foreignKey: "course_id", as: "moduleProgres
 CourseModule.hasMany(UserModuleProgress, { foreignKey: "module_id", as: "userProgress" })
 
 ForumCategory.hasMany(ForumPost, { foreignKey: "category_id", as: "posts" })
-Achievement.hasMany(UserAchievement, { foreignKey: "achievement_id", as: "userAchievements" })
+  Achievement.hasMany(UserAchievement, { foreignKey: "achievement_id", as: "userAchievements" })
+  
+// User Wallets for multi-wallet support
+interface UserWalletAttributes {
+  id: string
+  user_id: string
+  wallet_address: string
+  wallet_name: string
+  is_primary: boolean
+  connected_at: Date
+  last_used: Date
+  created_at: Date
+  updated_at: Date
+}
+
+type UserWalletCreation = Optional<
+  UserWalletAttributes,
+  "id" | "is_primary" | "connected_at" | "last_used" | "created_at" | "updated_at"
+>
+
+export class UserWallet
+  extends Model<UserWalletAttributes, UserWalletCreation>
+  implements UserWalletAttributes
+{
+  declare id: string
+  declare user_id: string
+  declare wallet_address: string
+  declare wallet_name: string
+  declare is_primary: boolean
+  declare connected_at: Date
+  declare last_used: Date
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+UserWallet.init(
+  {
+    id: { type: DataTypes.CHAR(36), defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    wallet_address: { type: DataTypes.STRING(255), allowNull: false },
+    wallet_name: { type: DataTypes.STRING(100), allowNull: false },
+    is_primary: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    connected_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    last_used: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "user_wallets", tableName: "user_wallets", timestamps: false }
+)
+
+// Associations
+User.hasMany(UserWallet, { foreignKey: "user_id", as: "wallets" })
+UserWallet.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
 
 

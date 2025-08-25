@@ -38,6 +38,17 @@ export async function GET() {
       const plan = await SubscriptionPlan.findByPk(userSubscription.plan_id)
       if (plan) {
         console.log(`Found plan ${plan.name} for subscription ${userSubscription.id}`)
+        
+        // Parse features if it's a string
+        let features = plan.features
+        if (typeof features === "string") {
+          try {
+            features = JSON.parse(features)
+          } catch {
+            features = null
+          }
+        }
+        
         return NextResponse.json({
           subscription: {
             id: userSubscription.id,
@@ -51,10 +62,20 @@ export async function GET() {
               display_name: plan.display_name,
               price: Number(plan.price),
               billing_cycle: plan.billing_cycle,
-              features: plan.features,
+              features: features,
             },
           },
         })
+      }
+    }
+
+    // Parse features if it's a string
+    let features = userSubscription.plan?.features
+    if (typeof features === "string") {
+      try {
+        features = JSON.parse(features)
+      } catch {
+        features = null
       }
     }
 
@@ -71,7 +92,7 @@ export async function GET() {
           display_name: userSubscription.plan.display_name,
           price: Number(userSubscription.plan.price),
           billing_cycle: userSubscription.plan.billing_cycle,
-          features: userSubscription.plan.features,
+          features: features,
         } : null,
       },
     })
