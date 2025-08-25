@@ -97,7 +97,7 @@ trading-academy-website/
 ### Prerequisites
 - Node.js 18+ 
 - MySQL database
-- npm or pnpm
+- npm
 
 ### Installation
 
@@ -111,7 +111,7 @@ trading-academy-website/
    ```bash
    npm install
    # or
-   pnpm install
+   npm install
    ```
 
 3. **Set up environment variables**
