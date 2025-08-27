@@ -12,6 +12,118 @@ interface EmailData {
 
 // Email templates
 const emailTemplates = {
+  "password-reset": (data: any) => ({
+    subject: "Password Reset Code - Trading Academy",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .code { background: #f3f4f6; border: 2px solid #d1d5db; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1f2937; }
+          .button { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          .warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset</h1>
+            <p>Trading Academy</p>
+          </div>
+          <div class="content">
+            <h2>Hello!</h2>
+            <p>You requested a password reset for your Trading Academy account.</p>
+            <p>Here's your verification code:</p>
+            <div class="code">${data.resetCode}</div>
+            <div class="warning">
+              <p><strong>⚠️ Important:</strong></p>
+              <ul>
+                <li>This code expires in ${data.expiryMinutes} minutes</li>
+                <li>Do not share this code with anyone</li>
+                <li>If you didn't request this reset, please ignore this email</li>
+              </ul>
+            </div>
+            <p>Enter this code on the password reset page to create a new password.</p>
+            <div style="text-align: center;">
+              <a href="${data.resetUrl}" class="button">Reset Password</a>
+            </div>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #6b7280; font-size: 14px;">${data.resetUrl}</p>
+            <p>Best regards,<br>The Trading Academy Team</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Trading Academy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  "email-verification": (data: any) => ({
+    subject: "Verify Your Email - Trading Academy",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .code { background: #f3f4f6; border: 2px solid #d1d5db; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1f2937; }
+          .button { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ea580c); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          .warning { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Email Verification</h1>
+            <p>Trading Academy</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.firstName}!</h2>
+            <p>Welcome to Trading Academy! Please verify your email address to complete your registration.</p>
+            <p>Here's your verification code:</p>
+            <div class="code">${data.verificationCode}</div>
+            <div class="warning">
+              <p><strong>⚠️ Important:</strong></p>
+              <ul>
+                <li>This code expires in ${data.expiryMinutes} minutes</li>
+                <li>Do not share this code with anyone</li>
+                <li>If you didn't create this account, please ignore this email</li>
+              </ul>
+            </div>
+            <p>Enter this code on the verification page to activate your account.</p>
+            <div style="text-align: center;">
+              <a href="${data.verificationUrl}" class="button">Verify Email</a>
+            </div>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #6b7280; font-size: 14px;">${data.verificationUrl}</p>
+            <p>Best regards,<br>The Trading Academy Team</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Trading Academy. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
   "subscription-expired": (data: any) => ({
     subject: "Your Trading Academy Subscription Has Expired",
     html: `
@@ -188,4 +300,59 @@ export async function sendTestEmail(to: string) {
   }
 
   return await sendEmail(testData)
+}
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
+  try {
+    const emailData = {
+      to: email,
+      subject: "Password Reset Code - Trading Academy",
+      template: "password-reset",
+      data: {
+        resetCode,
+        resetUrl: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?code=${resetCode}`,
+        expiryMinutes: 10
+      }
+    }
+
+    await sendEmail(emailData)
+    return true
+  } catch (error) {
+    console.error('Failed to send password reset email:', error)
+    return false
+  }
+}
+
+/**
+ * Send email verification
+ */
+export async function sendEmailVerification(email: string, verificationCode: string, firstName: string): Promise<boolean> {
+  try {
+    const emailData = {
+      to: email,
+      subject: "Verify Your Email - Trading Academy",
+      template: "email-verification",
+      data: {
+        firstName,
+        verificationCode,
+        verificationUrl: `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?code=${verificationCode}`,
+        expiryMinutes: 10
+      }
+    }
+
+    await sendEmail(emailData)
+    return true
+  } catch (error) {
+    console.error('Failed to send email verification:', error)
+    return false
+  }
+}
+
+// Default email service object
+export const defaultEmailService = {
+  sendPasswordResetEmail,
+  sendEmailVerification
 }
