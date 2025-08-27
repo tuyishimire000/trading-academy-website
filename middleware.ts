@@ -1,59 +1,50 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { verifyJwt } from "@/lib/auth/jwt"
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email', '/verify-reset-code']
+  const publicRoutes = [
+    '/', 
+    '/login', 
+    '/signup', 
+    '/forgot-password', 
+    '/reset-password', 
+    '/verify-email', 
+    '/verify-reset-code',
+    '/api/auth/signin',
+    '/api/auth/signup',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/auth/verify-email',
+    '/api/auth/verify-reset-code',
+    '/api/auth/resend-verification',
+    '/api/health',
+    '/api/setup-database'
+  ]
+  
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-
-  // Admin routes
-  const isAdminRoute = pathname.startsWith('/admin')
-
-  // Protected routes that require active subscription
-  const protectedRoutes = ['/dashboard', '/courses', '/events', '/community', '/portfolio', '/notifications', '/quiz']
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
   // Check if it's a public route
   if (isPublicRoute) {
     return NextResponse.next()
   }
 
-  // Check authentication
+  // Check if it's an API route
+  if (pathname.startsWith('/api/')) {
+    // Let API routes handle their own authentication
+    return NextResponse.next()
+  }
+
+  // For all other routes, check for auth token
   const token = request.cookies.get("auth-token")?.value
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  try {
-    const payload = verifyJwt(token)
-    if (!payload) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-
-    // For admin routes, check admin status
-    if (isAdminRoute) {
-      if (!payload.is_admin) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-      return NextResponse.next()
-    }
-
-    // For protected routes, we'll let the individual pages handle subscription checks
-    // This avoids the middleware API call issue
-    if (isProtectedRoute) {
-      return NextResponse.next()
-    }
-
-    // Allow access to other authenticated routes
-    return NextResponse.next()
-
-  } catch (error) {
-    console.error('Middleware error:', error)
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
+  // If token exists, allow access (JWT verification will be handled by individual pages/API routes)
+  return NextResponse.next()
 }
 
 export const config = {
