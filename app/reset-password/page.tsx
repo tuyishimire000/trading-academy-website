@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { useState, useEffect, Suspense } from "react"
+
+export const dynamic = 'force-dynamic'
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"

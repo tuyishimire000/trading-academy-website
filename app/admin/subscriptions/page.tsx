@@ -1,6 +1,8 @@
 import { SubscriptionsManagement } from "@/components/admin/subscriptions-management"
 import { PlansManagement } from "@/components/admin/plans-management"
 
+export const dynamic = 'force-dynamic'
+
 export default function SubscriptionsPage() {
   return (
     <div className="space-y-6">

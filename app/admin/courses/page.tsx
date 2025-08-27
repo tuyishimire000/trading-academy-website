@@ -1,5 +1,7 @@
 import { CoursesManagement } from "@/components/admin/courses-management"
 
+export const dynamic = 'force-dynamic'
+
 export default function AdminCoursesPage() {
   return (
     <div className="container mx-auto py-6">

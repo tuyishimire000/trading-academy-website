@@ -1,5 +1,7 @@
 import { UsersTable } from "@/components/admin/users-table"
 
+export const dynamic = 'force-dynamic'
+
 export default function AdminUsersPage() {
   return (
     <div className="container mx-auto py-6">
