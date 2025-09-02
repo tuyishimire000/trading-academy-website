@@ -12,7 +12,7 @@ import { CourseProgress } from "@/components/dashboard/course-progress"
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events"
 import { UserHeader } from "@/components/dashboard/user-header"
 import { NotificationCenter } from "@/components/notifications/notification-center"
-import { ForumChat } from "@/components/community/forum-chat"
+
 import Portfolio from "@/components/portfolio/multi-wallet-portfolio"
 import { SubscriptionPlanDisplay } from "@/components/dashboard/subscription-plan-display"
 import { PartnershipProgram } from "@/components/dashboard/partnership-program"
@@ -23,9 +23,12 @@ import { BillingContent } from "@/components/dashboard/billing-content"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { AchievementsPage } from "@/components/achievements/achievements-page"
+import { UserSettings } from "@/components/dashboard/user-settings"
+import { ResourcesPage } from "@/components/dashboard/resources-page"
+import { TradingJournal } from "@/components/dashboard/trading-journal"
 import { 
   MessageCircle, 
-  Users, 
   Loader2, 
   Bell, 
   Home,
@@ -132,7 +135,8 @@ function DashboardPageContent() {
       label: 'Community',
       icon: MessageSquare,
       description: 'Connect with traders',
-      badge: 'New'
+      badge: 'New',
+      href: '/community'
     },
     {
       id: 'events',
@@ -259,17 +263,68 @@ function DashboardPageContent() {
                 <p className="text-gray-600">Professional tools to enhance your trading</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <FileText className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Trading Journal</h3>
-                  <p className="text-sm text-gray-600">Track and analyze your trades</p>
-                  <Button className="mt-4 w-full" variant="outline">
-                    Open Journal
-                  </Button>
+            
+            {/* Trading Journal Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Trading Journal</h2>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => router.push('/trading-journal')}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Open Journal
+                </Button>
+              </div>
+              
+              {/* Trading Journal Preview Card */}
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/trading-journal')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Trading Journal</h3>
+                        <p className="text-sm text-gray-600">Track your trades and analyze performance</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open
+                    </Button>
+                  </div>
+                  
+                  {/* Quick Stats Preview */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">3</div>
+                      <div className="text-xs text-gray-500">Total Trades</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">33.3%</div>
+                      <div className="text-xs text-gray-500">Win Rate</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">$550</div>
+                      <div className="text-xs text-gray-500">Total P&L</div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Other Trading Tools */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Additional Trading Tools</h2>
+              <Button variant="outline" size="sm">
+                <Target className="h-4 w-4 mr-2" />
+                View All Tools
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6 text-center">
                   <BarChart3 className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -324,31 +379,7 @@ function DashboardPageContent() {
           </div>
         )
 
-      case 'community':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Community Forum</h1>
-                <p className="text-gray-600">Connect with fellow traders</p>
-              </div>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                1,247 members online
-              </Badge>
-            </div>
-            <ForumChat
-              currentUser={{
-                id: user?.id || '1',
-                name: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'User',
-                role: 'member',
-                joinDate: new Date(),
-                postsCount: 0,
-                reputation: 0
-              }}
-            />
-          </div>
-        )
+
 
       case 'events':
         return (
@@ -369,37 +400,7 @@ function DashboardPageContent() {
 
       case 'achievements':
         return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Achievements</h1>
-                <p className="text-gray-600">Your trading accomplishments</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Award className="h-12 w-12 text-amber-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">First Course Completed</h3>
-                  <p className="text-sm text-gray-600">Completed your first trading course</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Target className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Consistent Learner</h3>
-                  <p className="text-sm text-gray-600">7 days of consecutive learning</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <TrendingUp className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Portfolio Growth</h3>
-                  <p className="text-sm text-gray-600">Achieved 10% portfolio growth</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <AchievementsPage />
         )
 
       case 'partnership':
@@ -408,87 +409,11 @@ function DashboardPageContent() {
       case 'billing':
         return <BillingContent />
 
-      case 'resources':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Trading Resources</h1>
-                <p className="text-gray-600">Access learning materials and tools</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <Video className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Video Library</h3>
-                  <p className="text-sm text-gray-600">Access to 500+ trading videos</p>
-                </CardContent>
-              </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <FileText className="h-12 w-12 text-purple-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">E-Books</h3>
-                  <p className="text-sm text-gray-600">Comprehensive trading guides</p>
-                </CardContent>
-              </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <Headphones className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Podcasts</h3>
-                  <p className="text-sm text-gray-600">Weekly trading insights</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )
-
       case 'settings':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-                <p className="text-gray-600">Manage your account preferences</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Name</label>
-                    <p className="text-sm text-gray-600">{user?.first_name} {user?.last_name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <p className="text-sm text-gray-600">{user?.email}</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Edit Profile
-                  </Button>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notification Preferences</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Email Notifications</span>
-                    <Button variant="outline" size="sm">Configure</Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Push Notifications</span>
-                    <Button variant="outline" size="sm">Configure</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )
+        return <UserSettings />
+
+      case 'resources':
+        return <ResourcesPage />
 
       default:
         return null
@@ -551,7 +476,13 @@ function DashboardPageContent() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => {
+                        if (item.href) {
+                          router.push(item.href)
+                        } else {
+                          setActiveSection(item.id)
+                        }
+                      }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
                         isActive 
                           ? 'bg-amber-50 text-amber-700 border border-amber-200' 

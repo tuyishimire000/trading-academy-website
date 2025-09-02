@@ -644,7 +644,7 @@ PortfolioTrade.init(
 
 // Achievements
 interface AchievementAttributes {
-  id: string
+  id: number
   name: string
   description: string
   icon: string
@@ -662,7 +662,7 @@ type AchievementCreation = Optional<
 >
 
 export class Achievement extends Model<AchievementAttributes, AchievementCreation> implements AchievementAttributes {
-  declare id: string
+  declare id: number
   declare name: string
   declare description: string
   declare icon: string
@@ -674,7 +674,7 @@ export class Achievement extends Model<AchievementAttributes, AchievementCreatio
 
 Achievement.init(
   {
-    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(100), allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: false },
     icon: { type: DataTypes.STRING(50), allowNull: false },
@@ -690,35 +690,163 @@ Achievement.init(
 interface UserAchievementAttributes {
   id: string
   user_id: string
-  achievement_id: string
+  achievement_id: number
   earned_at: Date
-  created_at: Date
 }
 
 type UserAchievementCreation = Optional<
   UserAchievementAttributes,
   | "id"
   | "earned_at"
-  | "created_at"
 >
 
 export class UserAchievement extends Model<UserAchievementAttributes, UserAchievementCreation> implements UserAchievementAttributes {
   declare id: string
   declare user_id: string
-  declare achievement_id: string
+  declare achievement_id: number
   declare earned_at: Date
-  declare created_at: Date
 }
 
 UserAchievement.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     user_id: { type: DataTypes.UUID, allowNull: false },
-    achievement_id: { type: DataTypes.UUID, allowNull: false },
+    achievement_id: { type: DataTypes.INTEGER, allowNull: false },
     earned_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },
   { sequelize, modelName: "user_achievements", tableName: "user_achievements", timestamps: false }
+)
+
+// User Points
+interface UserPointsAttributes {
+  id: string
+  user_id: string
+  total_points: number
+  points_earned: number
+  points_spent: number
+  current_level: string
+  created_at: Date
+  updated_at: Date
+}
+
+type UserPointsCreation = Optional<
+  UserPointsAttributes,
+  | "id"
+  | "total_points"
+  | "points_earned"
+  | "points_spent"
+  | "current_level"
+  | "created_at"
+  | "updated_at"
+>
+
+export class UserPoints extends Model<UserPointsAttributes, UserPointsCreation> implements UserPointsAttributes {
+  declare id: string
+  declare user_id: string
+  declare total_points: number
+  declare points_earned: number
+  declare points_spent: number
+  declare current_level: string
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+UserPoints.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false, unique: true },
+    total_points: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    points_earned: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    points_spent: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    current_level: { type: DataTypes.STRING(50), allowNull: false, defaultValue: 'beginner' },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "user_points", tableName: "user_points", timestamps: false }
+)
+
+// Points History
+interface PointsHistoryAttributes {
+  id: number
+  user_id: string
+  points_change: number
+  action_type: string
+  achievement_id: number | null
+  description: string | null
+  created_at: Date
+}
+
+type PointsHistoryCreation = Optional<
+  PointsHistoryAttributes,
+  | "id"
+  | "achievement_id"
+  | "description"
+  | "created_at"
+>
+
+export class PointsHistory extends Model<PointsHistoryAttributes, PointsHistoryCreation> implements PointsHistoryAttributes {
+  declare id: number
+  declare user_id: string
+  declare points_change: number
+  declare action_type: string
+  declare achievement_id: number | null
+  declare description: string | null
+  declare created_at: Date
+}
+
+PointsHistory.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    points_change: { type: DataTypes.INTEGER, allowNull: false },
+    action_type: { type: DataTypes.STRING(100), allowNull: false },
+    achievement_id: { type: DataTypes.INTEGER, allowNull: true },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "points_history", tableName: "points_history", timestamps: false }
+)
+
+// Points Rewards
+interface PointsRewardAttributes {
+  id: number
+  points_required: number
+  reward_type: string
+  reward_value: string
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+type PointsRewardCreation = Optional<
+  PointsRewardAttributes,
+  | "id"
+  | "is_active"
+  | "created_at"
+  | "updated_at"
+>
+
+export class PointsReward extends Model<PointsRewardAttributes, PointsRewardCreation> implements PointsRewardAttributes {
+  declare id: number
+  declare points_required: number
+  declare reward_type: string
+  declare reward_value: string
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+PointsReward.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    points_required: { type: DataTypes.INTEGER, allowNull: false },
+    reward_type: { type: DataTypes.STRING(50), allowNull: false },
+    reward_value: { type: DataTypes.TEXT, allowNull: false },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "points_rewards", tableName: "points_rewards", timestamps: false }
 )
 
 // User Subscriptions
@@ -923,6 +1051,10 @@ PortfolioTrade.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
 UserAchievement.belongsTo(User, { foreignKey: "user_id", as: "user" })
 UserAchievement.belongsTo(Achievement, { foreignKey: "achievement_id", as: "achievement" })
+
+UserPoints.belongsTo(User, { foreignKey: "user_id", as: "user" })
+PointsHistory.belongsTo(User, { foreignKey: "user_id", as: "user" })
+PointsHistory.belongsTo(Achievement, { foreignKey: "achievement_id", as: "achievement" })
 
 UserSubscription.belongsTo(User, { foreignKey: "user_id", as: "user" })
 UserSubscription.belongsTo(SubscriptionPlan, { foreignKey: "plan_id", as: "plan" })
@@ -1179,6 +1311,8 @@ User.hasMany(ForumPost, { foreignKey: "user_id", as: "posts" })
 User.hasMany(PortfolioPosition, { foreignKey: "user_id", as: "positions" })
 User.hasMany(PortfolioTrade, { foreignKey: "user_id", as: "trades" })
 User.hasMany(UserAchievement, { foreignKey: "user_id", as: "achievements" })
+User.hasOne(UserPoints, { foreignKey: "user_id", as: "points" })
+User.hasMany(PointsHistory, { foreignKey: "user_id", as: "pointsHistory" })
 
 Course.hasMany(UserCourseProgress, { foreignKey: "course_id", as: "progress" })
 Course.hasMany(UserModuleProgress, { foreignKey: "course_id", as: "moduleProgress" })
@@ -1235,12 +1369,953 @@ UserWallet.init(
   { sequelize, modelName: "user_wallets", tableName: "user_wallets", timestamps: false }
 )
 
+// User Votes for forum posts
+interface UserVoteAttributes {
+  id: string
+  user_id: string
+  post_id: string
+  vote_type: 'up' | 'down'
+  created_at: Date
+}
+
+type UserVoteCreation = Optional<
+  UserVoteAttributes,
+  "id" | "created_at"
+>
+
+export class UserVote extends Model<UserVoteAttributes, UserVoteCreation> implements UserVoteAttributes {
+  declare id: string
+  declare user_id: string
+  declare post_id: string
+  declare vote_type: 'up' | 'down'
+  declare created_at: Date
+}
+
+UserVote.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    post_id: { type: DataTypes.UUID, allowNull: false },
+    vote_type: { type: DataTypes.ENUM('up', 'down'), allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { sequelize, modelName: "user_votes", tableName: "user_votes", timestamps: false }
+)
+
 // Associations
 User.hasMany(UserWallet, { foreignKey: "user_id", as: "wallets" })
 UserWallet.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
+User.hasMany(UserVote, { foreignKey: "user_id", as: "votes" })
+UserVote.belongsTo(User, { foreignKey: "user_id", as: "user" })
+ForumPost.hasMany(UserVote, { foreignKey: "post_id", as: "votes" })
+UserVote.belongsTo(ForumPost, { foreignKey: "post_id", as: "post" })
 
+// Resource Categories
+interface ResourceCategoryAttributes {
+  id: number
+  name: string
+  description?: string
+  icon?: string
+  color: string
+  created_at: Date
+  updated_at: Date
+}
 
+type ResourceCategoryCreationAttributes = Optional<
+  ResourceCategoryAttributes,
+  'id' | 'created_at' | 'updated_at'
+>
 
+export class ResourceCategory extends Model<ResourceCategoryAttributes, ResourceCategoryCreationAttributes> implements ResourceCategoryAttributes {
+  declare id: number
+  declare name: string
+  declare description: string
+  declare icon: string
+  declare color: string
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+ResourceCategory.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    icon: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    color: {
+      type: DataTypes.STRING(7),
+      allowNull: false,
+      defaultValue: '#3B82F6',
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'resource_categories',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+// Resource Videos
+interface ResourceVideoAttributes {
+  id: number
+  title: string
+  description?: string
+  url: string
+  thumbnail_url?: string
+  duration_seconds?: number
+  source: string
+  source_id?: string
+  category_id?: number
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  tags?: any
+  views_count: number
+  rating: number
+  is_featured: boolean
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+type ResourceVideoCreationAttributes = Optional<
+  ResourceVideoAttributes,
+  'id' | 'views_count' | 'rating' | 'is_featured' | 'is_active' | 'created_at' | 'updated_at'
+>
+
+export class ResourceVideo extends Model<ResourceVideoAttributes, ResourceVideoCreationAttributes> implements ResourceVideoAttributes {
+  declare id: number
+  declare title: string
+  declare description: string
+  declare url: string
+  declare thumbnail_url: string
+  declare duration_seconds: number
+  declare source: string
+  declare source_id: string
+  declare category_id: number
+  declare difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  declare tags: any
+  declare views_count: number
+  declare rating: number
+  declare is_featured: boolean
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+ResourceVideo.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    url: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+    },
+    thumbnail_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    duration_seconds: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    source: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    source_id: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    category_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    difficulty_level: {
+      type: DataTypes.ENUM('beginner', 'intermediate', 'advanced'),
+      allowNull: false,
+      defaultValue: 'beginner',
+    },
+    tags: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    views_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    rating: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: false,
+      defaultValue: 0.00,
+    },
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'resource_videos',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+// Resource Books
+interface ResourceBookAttributes {
+  id: number
+  title: string
+  author: string
+  description?: string
+  cover_image_url?: string
+  file_url: string
+  file_size_mb?: number
+  file_type?: string
+  pages?: number
+  isbn?: string
+  publisher?: string
+  publication_year?: number
+  category_id?: number
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  tags?: any
+  downloads_count: number
+  rating: number
+  is_featured: boolean
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+type ResourceBookCreationAttributes = Optional<
+  ResourceBookAttributes,
+  'id' | 'downloads_count' | 'rating' | 'is_featured' | 'is_active' | 'created_at' | 'updated_at'
+>
+
+export class ResourceBook extends Model<ResourceBookAttributes, ResourceBookCreationAttributes> implements ResourceBookAttributes {
+  declare id: number
+  declare title: string
+  declare author: string
+  declare description: string
+  declare cover_image_url: string
+  declare file_url: string
+  declare file_size_mb: number
+  declare file_type: string
+  declare pages: number
+  declare isbn: string
+  declare publisher: string
+  declare publication_year: number
+  declare category_id: number
+  declare difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  declare tags: any
+  declare downloads_count: number
+  declare rating: number
+  declare is_featured: boolean
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+ResourceBook.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    author: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    cover_image_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    file_url: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+    },
+    file_size_mb: {
+      type: DataTypes.DECIMAL(8, 2),
+      allowNull: true,
+    },
+    file_type: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    pages: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    isbn: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    publisher: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    publication_year: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    category_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    difficulty_level: {
+      type: DataTypes.ENUM('beginner', 'intermediate', 'advanced'),
+      allowNull: false,
+      defaultValue: 'beginner',
+    },
+    tags: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    downloads_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    rating: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: false,
+      defaultValue: 0.00,
+    },
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'resource_books',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+// Resource Podcasts
+interface ResourcePodcastAttributes {
+  id: number
+  title: string
+  description?: string
+  host?: string
+  url: string
+  platform: string
+  platform_id?: string
+  cover_image_url?: string
+  duration_seconds?: number
+  episode_number?: number
+  season_number?: number
+  category_id?: number
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  tags?: any
+  listens_count: number
+  rating: number
+  is_featured: boolean
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+type ResourcePodcastCreationAttributes = Optional<
+  ResourcePodcastAttributes,
+  'id' | 'listens_count' | 'rating' | 'is_featured' | 'is_active' | 'created_at' | 'updated_at'
+>
+
+export class ResourcePodcast extends Model<ResourcePodcastAttributes, ResourcePodcastCreationAttributes> implements ResourcePodcastAttributes {
+  declare id: number
+  declare title: string
+  declare description: string
+  declare host: string
+  declare url: string
+  declare platform: string
+  declare platform_id: string
+  declare cover_image_url: string
+  declare duration_seconds: number
+  declare episode_number: number
+  declare season_number: number
+  declare category_id: number
+  declare difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  declare tags: any
+  declare listens_count: number
+  declare rating: number
+  declare is_featured: boolean
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+ResourcePodcast.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    host: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    url: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+    },
+    platform: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+    platform_id: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    cover_image_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    duration_seconds: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    episode_number: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    season_number: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    category_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    difficulty_level: {
+      type: DataTypes.ENUM('beginner', 'intermediate', 'advanced'),
+      allowNull: false,
+      defaultValue: 'beginner',
+    },
+    tags: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    listens_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    rating: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: false,
+      defaultValue: 0.00,
+    },
+    is_featured: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'resource_podcasts',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+// Resource Associations
+ResourceCategory.hasMany(ResourceVideo, { foreignKey: "category_id", as: "videos" })
+ResourceVideo.belongsTo(ResourceCategory, { foreignKey: "category_id", as: "category" })
+
+ResourceCategory.hasMany(ResourceBook, { foreignKey: "category_id", as: "books" })
+ResourceBook.belongsTo(ResourceCategory, { foreignKey: "category_id", as: "category" })
+
+ResourceCategory.hasMany(ResourcePodcast, { foreignKey: "category_id", as: "podcasts" })
+ResourcePodcast.belongsTo(ResourceCategory, { foreignKey: "category_id", as: "category" })
+
+// Trading Journal Models
+export class TradingJournalStrategy extends Model {
+  declare id: number
+  declare user_id: string
+  declare name: string
+  declare description: string | null
+  declare entry_rules: string | null
+  declare exit_rules: string | null
+  declare risk_management_rules: string | null
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalStrategy.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    name: { type: DataTypes.STRING(100), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    entry_rules: { type: DataTypes.TEXT, allowNull: true },
+    exit_rules: { type: DataTypes.TEXT, allowNull: true },
+    risk_management_rules: { type: DataTypes.TEXT, allowNull: true },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_strategies',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalCategory extends Model {
+  declare id: number
+  declare user_id: string
+  declare name: string
+  declare color: string
+  declare description: string | null
+  declare created_at: Date
+}
+
+TradingJournalCategory.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    name: { type: DataTypes.STRING(100), allowNull: false },
+    color: { type: DataTypes.STRING(7), allowNull: false, defaultValue: '#3B82F6' },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_categories',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalTag extends Model {
+  declare id: number
+  declare user_id: string
+  declare name: string
+  declare color: string
+  declare created_at: Date
+}
+
+TradingJournalTag.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    name: { type: DataTypes.STRING(50), allowNull: false },
+    color: { type: DataTypes.STRING(7), allowNull: false, defaultValue: '#6B7280' },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_tags',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalTrade extends Model {
+  declare id: number
+  declare user_id: string
+  declare trade_id: string
+  declare symbol: string
+  declare instrument_type: 'stock' | 'forex' | 'crypto' | 'commodity' | 'index' | 'option' | 'future'
+  declare direction: 'long' | 'short'
+  declare entry_price: number
+  declare entry_time: Date
+  declare entry_reason: string | null
+  declare entry_confidence: 'low' | 'medium' | 'high'
+  declare exit_price: number | null
+  declare exit_time: Date | null
+  declare exit_reason: string | null
+  declare exit_confidence: 'low' | 'medium' | 'high' | null
+  declare position_size: number
+  declare position_size_currency: string
+  declare leverage: number
+  declare stop_loss: number | null
+  declare take_profit: number | null
+  declare risk_amount: number | null
+  declare risk_percentage: number | null
+  declare pnl_amount: number | null
+  declare pnl_percentage: number | null
+  declare max_profit: number | null
+  declare max_loss: number | null
+  declare strategy_id: number | null
+  declare category_id: number | null
+  declare market_condition: 'trending' | 'ranging' | 'volatile' | 'sideways'
+  declare trade_setup_quality: 'poor' | 'fair' | 'good' | 'excellent'
+  declare execution_quality: 'poor' | 'fair' | 'good' | 'excellent'
+  declare status: 'open' | 'closed' | 'cancelled'
+  declare is_winning: boolean | null
+  declare notes: string | null
+  declare lessons_learned: string | null
+  declare next_time_actions: string | null
+  declare screenshots: any
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalTrade.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    trade_id: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+    symbol: { type: DataTypes.STRING(20), allowNull: false },
+    instrument_type: { type: DataTypes.ENUM('stock', 'forex', 'crypto', 'commodity', 'index', 'option', 'future'), allowNull: false },
+    direction: { type: DataTypes.ENUM('long', 'short'), allowNull: false },
+    entry_price: { type: DataTypes.DECIMAL(15, 6), allowNull: false },
+    entry_time: { type: DataTypes.DATE, allowNull: false },
+    entry_reason: { type: DataTypes.TEXT, allowNull: true },
+    entry_confidence: { type: DataTypes.ENUM('low', 'medium', 'high'), allowNull: false, defaultValue: 'medium' },
+    exit_price: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    exit_time: { type: DataTypes.DATE, allowNull: true },
+    exit_reason: { type: DataTypes.TEXT, allowNull: true },
+    exit_confidence: { type: DataTypes.ENUM('low', 'medium', 'high'), allowNull: true },
+    position_size: { type: DataTypes.DECIMAL(15, 6), allowNull: false },
+    position_size_currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'USD' },
+    leverage: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 1.00 },
+    stop_loss: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    take_profit: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    risk_amount: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    risk_percentage: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
+    pnl_amount: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    pnl_percentage: { type: DataTypes.DECIMAL(8, 4), allowNull: true },
+    max_profit: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    max_loss: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    strategy_id: { type: DataTypes.INTEGER, allowNull: true },
+    category_id: { type: DataTypes.INTEGER, allowNull: true },
+    market_condition: { type: DataTypes.ENUM('trending', 'ranging', 'volatile', 'sideways'), allowNull: false, defaultValue: 'trending' },
+    trade_setup_quality: { type: DataTypes.ENUM('poor', 'fair', 'good', 'excellent'), allowNull: false, defaultValue: 'fair' },
+    execution_quality: { type: DataTypes.ENUM('poor', 'fair', 'good', 'excellent'), allowNull: false, defaultValue: 'fair' },
+    status: { type: DataTypes.ENUM('open', 'closed', 'cancelled'), allowNull: false, defaultValue: 'open' },
+    is_winning: { type: DataTypes.BOOLEAN, allowNull: true },
+    notes: { type: DataTypes.TEXT, allowNull: true },
+    lessons_learned: { type: DataTypes.TEXT, allowNull: true },
+    next_time_actions: { type: DataTypes.TEXT, allowNull: true },
+    screenshots: { type: DataTypes.JSON, allowNull: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_trades',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalNote extends Model {
+  declare id: number
+  declare trade_id: number
+  declare user_id: string
+  declare note_type: 'pre_trade' | 'during_trade' | 'post_trade' | 'analysis'
+  declare content: string
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalNote.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    trade_id: { type: DataTypes.INTEGER, allowNull: false },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    note_type: { type: DataTypes.ENUM('pre_trade', 'during_trade', 'post_trade', 'analysis'), allowNull: false },
+    content: { type: DataTypes.TEXT, allowNull: false },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_notes',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalChecklist extends Model {
+  declare id: number
+  declare user_id: string
+  declare name: string
+  declare description: string | null
+  declare checklist_type: 'pre_trade' | 'during_trade' | 'post_trade' | 'weekly' | 'monthly'
+  declare is_active: boolean
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalChecklist.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    name: { type: DataTypes.STRING(100), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    checklist_type: { type: DataTypes.ENUM('pre_trade', 'during_trade', 'post_trade', 'weekly', 'monthly'), allowNull: false },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_checklists',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalChecklistItem extends Model {
+  declare id: number
+  declare checklist_id: number
+  declare item_text: string
+  declare is_required: boolean
+  declare order_index: number
+  declare created_at: Date
+}
+
+TradingJournalChecklistItem.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    checklist_id: { type: DataTypes.INTEGER, allowNull: false },
+    item_text: { type: DataTypes.STRING(255), allowNull: false },
+    is_required: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    order_index: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_checklist_items',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalGoal extends Model {
+  declare id: number
+  declare user_id: string
+  declare title: string
+  declare description: string | null
+  declare goal_type: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+  declare target_value: number | null
+  declare current_value: number
+  declare target_date: Date | null
+  declare status: 'active' | 'completed' | 'cancelled'
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalGoal.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    title: { type: DataTypes.STRING(100), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    goal_type: { type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'quarterly', 'yearly'), allowNull: false },
+    target_value: { type: DataTypes.DECIMAL(15, 6), allowNull: true },
+    current_value: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    target_date: { type: DataTypes.DATE, allowNull: true },
+    status: { type: DataTypes.ENUM('active', 'completed', 'cancelled'), allowNull: false, defaultValue: 'active' },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_goals',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class TradingJournalPerformanceMetric extends Model {
+  declare id: number
+  declare user_id: string
+  declare period_type: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+  declare period_start: Date
+  declare period_end: Date
+  declare total_trades: number
+  declare winning_trades: number
+  declare losing_trades: number
+  declare win_rate: number
+  declare total_pnl: number
+  declare average_win: number
+  declare average_loss: number
+  declare largest_win: number
+  declare largest_loss: number
+  declare profit_factor: number
+  declare risk_reward_ratio: number
+  declare max_drawdown: number
+  declare sharpe_ratio: number
+  declare average_trade_duration: number
+  declare total_trading_time: number
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+TradingJournalPerformanceMetric.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    period_type: { type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'quarterly', 'yearly'), allowNull: false },
+    period_start: { type: DataTypes.DATE, allowNull: false },
+    period_end: { type: DataTypes.DATE, allowNull: false },
+    total_trades: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    winning_trades: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    losing_trades: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    win_rate: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
+    total_pnl: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    average_win: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    average_loss: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    largest_win: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    largest_loss: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    profit_factor: { type: DataTypes.DECIMAL(8, 4), allowNull: false, defaultValue: 0 },
+    risk_reward_ratio: { type: DataTypes.DECIMAL(8, 4), allowNull: false, defaultValue: 0 },
+    max_drawdown: { type: DataTypes.DECIMAL(15, 6), allowNull: false, defaultValue: 0 },
+    sharpe_ratio: { type: DataTypes.DECIMAL(8, 4), allowNull: false, defaultValue: 0 },
+    average_trade_duration: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    total_trading_time: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'trading_journal_performance_metrics',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+// Trading Journal Associations
+TradingJournalStrategy.hasMany(TradingJournalTrade, { foreignKey: "strategy_id", as: "strategyTrades" })
+TradingJournalTrade.belongsTo(TradingJournalStrategy, { foreignKey: "strategy_id", as: "strategy" })
+
+TradingJournalCategory.hasMany(TradingJournalTrade, { foreignKey: "category_id", as: "categoryTrades" })
+TradingJournalTrade.belongsTo(TradingJournalCategory, { foreignKey: "category_id", as: "category" })
+
+TradingJournalTrade.hasMany(TradingJournalNote, { foreignKey: "trade_id", as: "tradeNotes" })
+TradingJournalNote.belongsTo(TradingJournalTrade, { foreignKey: "trade_id", as: "trade" })
+
+TradingJournalChecklist.hasMany(TradingJournalChecklistItem, { foreignKey: "checklist_id", as: "items" })
+TradingJournalChecklistItem.belongsTo(TradingJournalChecklist, { foreignKey: "checklist_id", as: "checklist" })
+
+User.hasMany(TradingJournalTrade, { foreignKey: "user_id", as: "tradingTrades" })
+TradingJournalTrade.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalStrategy, { foreignKey: "user_id", as: "strategies" })
+TradingJournalStrategy.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalCategory, { foreignKey: "user_id", as: "categories" })
+TradingJournalCategory.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalTag, { foreignKey: "user_id", as: "tags" })
+TradingJournalTag.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalChecklist, { foreignKey: "user_id", as: "checklists" })
+TradingJournalChecklist.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalGoal, { foreignKey: "user_id", as: "goals" })
+TradingJournalGoal.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+User.hasMany(TradingJournalPerformanceMetric, { foreignKey: "user_id", as: "performanceMetrics" })
+TradingJournalPerformanceMetric.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
 
