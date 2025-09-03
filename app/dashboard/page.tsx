@@ -33,7 +33,6 @@ import {
   Bell, 
   Home,
   BookOpen,
-  BarChart3,
   MessageSquare,
   Calendar,
   Settings,
@@ -44,7 +43,6 @@ import {
   Video,
   Headphones,
   Star,
-  Shield,
   Handshake,
   Share2,
   Users2,
@@ -121,7 +119,7 @@ function DashboardPageContent() {
     {
       id: 'portfolio',
       label: 'Portfolio',
-      icon: BarChart3,
+      icon: TrendingUp,
       description: 'Trading portfolio & analytics'
     },
     {
@@ -280,38 +278,13 @@ function DashboardPageContent() {
               
               {/* Trading Journal Preview Card */}
               <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/trading-journal')}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">Trading Journal</h3>
-                        <p className="text-sm text-gray-600">Track your trades and analyze performance</p>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Open
-                    </Button>
-                  </div>
-                  
-                  {/* Quick Stats Preview */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">3</div>
-                      <div className="text-xs text-gray-500">Total Trades</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">33.3%</div>
-                      <div className="text-xs text-gray-500">Win Rate</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">$550</div>
-                      <div className="text-xs text-gray-500">Total P&L</div>
-                    </div>
-                  </div>
+                <CardContent className="p-6 text-center">
+                  <FileText className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">Trading Journal</h3>
+                  <p className="text-sm text-gray-600">Track your trades and analyze performance</p>
+                  <Button className="mt-4 w-full" variant="outline">
+                    Open Journal
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -325,17 +298,7 @@ function DashboardPageContent() {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <BarChart3 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Performance Analytics</h3>
-                  <p className="text-sm text-gray-600">Advanced trading analytics</p>
-                  <Button className="mt-4 w-full" variant="outline">
-                    View Analytics
-                  </Button>
-                </CardContent>
-              </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/risk-calculator')}>
                 <CardContent className="p-6 text-center">
                   <Target className="h-12 w-12 text-purple-500 mx-auto mb-4" />
                   <h3 className="font-semibold mb-2">Risk Calculator</h3>
@@ -362,16 +325,6 @@ function DashboardPageContent() {
                   <p className="text-sm text-gray-600">Track market events</p>
                   <Button className="mt-4 w-full" variant="outline">
                     View Calendar
-                  </Button>
-                </CardContent>
-              </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <Shield className="h-12 w-12 text-indigo-500 mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">Trade Protection</h3>
-                  <p className="text-sm text-gray-600">Set stop losses & targets</p>
-                  <Button className="mt-4 w-full" variant="outline">
-                    Manage Protection
                   </Button>
                 </CardContent>
               </Card>
