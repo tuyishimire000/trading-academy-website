@@ -421,34 +421,34 @@ function DashboardPageContent() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 z-50">
+      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-50">
         <UserHeader />
       </div>
       
       <div className="flex flex-1 overflow-hidden">
         {/* Fixed Sidebar */}
-        <div className={`bg-white border-r border-gray-200 flex flex-col transition-all duration-300 flex-shrink-0 ${
+        <div className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 flex-shrink-0 ${
           sidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
             {!sidebarCollapsed && (
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
                   <Star className="h-5 w-5 text-white" />
                 </div>
-                <h2 className="text-lg font-semibold">Trading Academy</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Trading Academy</h2>
               </div>
             )}
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <svg
-                className={`h-4 w-4 text-gray-600 transition-transform ${
+                className={`h-4 w-4 text-gray-600 dark:text-gray-300 transition-transform ${
                   sidebarCollapsed ? 'rotate-180' : ''
                 }`}
                 fill="none"
@@ -485,17 +485,17 @@ function DashboardPageContent() {
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
                         isActive 
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700' 
+                          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                       title={sidebarCollapsed ? item.label : undefined}
                     >
                       <div className="flex items-center">
-                        <Icon className={`h-5 w-5 ${sidebarCollapsed ? '' : 'mr-3'} ${isActive ? 'text-amber-600' : 'text-gray-500'}`} />
+                        <Icon className={`h-5 w-5 ${sidebarCollapsed ? '' : 'mr-3'} ${isActive ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`} />
                         {!sidebarCollapsed && (
                           <div>
                             <div className="font-medium">{item.label}</div>
-                            <div className="text-xs text-gray-500">{item.description}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{item.description}</div>
                           </div>
                         )}
                       </div>
@@ -516,7 +516,7 @@ function DashboardPageContent() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <div className="p-6">
             {renderContent()}
           </div>
@@ -534,10 +534,10 @@ function DashboardPageContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard...</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Loading Dashboard...</h2>
         </div>
       </div>
     }>

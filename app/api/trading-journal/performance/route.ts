@@ -223,22 +223,44 @@ async function getCurrentPeriodMetrics(userId: string, periodType: string) {
 async function getOverallStats(userId: string) {
   const trades = await TradingJournalTrade.findAll({
     where: {
-      user_id: userId,
-      status: 'closed'
+      user_id: userId
     }
   })
 
   const totalTrades = trades.length
-  const winningTrades = trades.filter(t => t.is_winning).length
-  const totalPnl = trades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0)
-  const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0
+  const closedTrades = trades.filter(t => t.status === 'closed')
+  const openTrades = trades.filter(t => t.status === 'open')
+  
+  const winningTrades = closedTrades.filter(t => t.is_winning).length
+  const losingTrades = closedTrades.filter(t => !t.is_winning).length
+  
+  // Calculate P&L from closed trades
+  const closedPnl = closedTrades.reduce((sum, t) => {
+    const pnl = typeof t.pnl_amount === 'string' ? parseFloat(t.pnl_amount) || 0 : (t.pnl_amount || 0)
+    return sum + pnl
+  }, 0)
+  
+  // Calculate unrealized P&L from open trades (if they have current market prices)
+  // For now, we'll just show closed P&L
+  const totalPnl = closedPnl
+  const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0
+
+  console.log('Performance calculation:', {
+    totalTrades,
+    closedTrades: closedTrades.length,
+    openTrades: openTrades.length,
+    winningTrades,
+    losingTrades,
+    totalPnl,
+    closedPnl
+  })
 
   return {
     totalTrades,
     winningTrades,
-    losingTrades: totalTrades - winningTrades,
+    losingTrades,
     winRate,
     totalPnl,
-    averagePnl: totalTrades > 0 ? totalPnl / totalTrades : 0
+    averagePnl: closedTrades.length > 0 ? totalPnl / closedTrades.length : 0
   }
 }

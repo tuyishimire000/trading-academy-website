@@ -26,9 +26,30 @@ import {
   Edit,
   Trash2,
   Eye,
-  X
+  X,
+  Settings,
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useAuth } from '@/lib/hooks/use-auth'
+import { PnLChart, WinRateChart, TradeDistributionChart, MonthlyPerformanceChart } from '@/components/dashboard/charts'
+
+interface Screenshot {
+  id: number
+  trade_id: number
+  user_id: string
+  filename: string
+  original_name: string
+  file_path: string
+  file_url: string
+  file_size: number
+  mime_type: string
+  screenshot_type: 'entry' | 'exit'
+  created_at: string
+  updated_at: string
+}
 
 interface Trade {
   id: number
@@ -65,8 +86,10 @@ interface Trade {
   notes?: string
   lessons_learned?: string
   next_time_actions?: string
+
   strategy?: { name: string }
   category?: { name: string; color: string }
+  screenshots?: Screenshot[]
 }
 
 interface PerformanceMetrics {
@@ -76,6 +99,522 @@ interface PerformanceMetrics {
   winRate: number
   totalPnl: number
   averagePnl: number
+}
+
+// Helper functions
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount)
+}
+
+const safeNumber = (value: any): number => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+// Analytics calculation functions
+const calculateSharpeRatio = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const returns = closedTrades.map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length
+  const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length
+  const stdDev = Math.sqrt(variance)
+  
+  return stdDev === 0 ? 0 : avgReturn / stdDev
+}
+
+const calculateMaxDrawdown = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  let peak = 0
+  let maxDrawdown = 0
+  let cumulativePnl = 0
+  
+  closedTrades.forEach(trade => {
+    cumulativePnl += parseFloat(trade.pnl_amount?.toString() || '0')
+    if (cumulativePnl > peak) peak = cumulativePnl
+    const drawdown = ((peak - cumulativePnl) / peak) * 100
+    if (drawdown > maxDrawdown) maxDrawdown = drawdown
+  })
+  
+  return maxDrawdown
+}
+
+const calculateProfitFactor = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const grossProfit = closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') > 0)
+    .reduce((sum, t) => sum + parseFloat(t.pnl_amount?.toString() || '0'), 0)
+  
+  const grossLoss = Math.abs(closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') < 0)
+    .reduce((sum, t) => sum + parseFloat(t.pnl_amount?.toString() || '0'), 0))
+  
+  return grossLoss === 0 ? grossProfit : grossProfit / grossLoss
+}
+
+const calculateExpectancy = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const totalPnl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl_amount?.toString() || '0'), 0)
+  return totalPnl / closedTrades.length
+}
+
+const calculateVolatility = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const returns = closedTrades.map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length
+  const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length
+  
+  return Math.sqrt(variance)
+}
+
+const calculateVaR = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const returns = closedTrades.map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  const sortedReturns = returns.sort((a, b) => a - b)
+  const varIndex = Math.floor(sortedReturns.length * 0.05) // 95% confidence
+  
+  return Math.abs(sortedReturns[varIndex] || 0)
+}
+
+const calculateLargestWin = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const wins = closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') > 0)
+    .map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  
+  return wins.length > 0 ? Math.max(...wins) : 0
+}
+
+const calculateLargestLoss = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const losses = closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') < 0)
+    .map(t => Math.abs(parseFloat(t.pnl_amount?.toString() || '0')))
+  
+  return losses.length > 0 ? Math.max(...losses) : 0
+}
+
+const calculateAverageWin = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const wins = closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') > 0)
+    .map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  
+  return wins.length > 0 ? wins.reduce((sum, win) => sum + win, 0) / wins.length : 0
+}
+
+const calculateAverageLoss = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const losses = closedTrades
+    .filter(t => parseFloat(t.pnl_amount?.toString() || '0') < 0)
+    .map(t => parseFloat(t.pnl_amount?.toString() || '0'))
+  
+  return losses.length > 0 ? Math.abs(losses.reduce((sum, loss) => sum + loss, 0) / losses.length) : 0
+}
+
+const calculateConsecutiveWins = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.is_winning !== null)
+  if (closedTrades.length === 0) return 0
+  
+  let maxStreak = 0
+  let currentStreak = 0
+  
+  closedTrades.forEach(trade => {
+    if (trade.is_winning) {
+      currentStreak++
+      if (currentStreak > maxStreak) maxStreak = currentStreak
+    } else {
+      currentStreak = 0
+    }
+  })
+  
+  return maxStreak
+}
+
+const calculateConsecutiveLosses = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.is_winning !== null)
+  if (closedTrades.length === 0) return 0
+  
+  let maxStreak = 0
+  let currentStreak = 0
+  
+  closedTrades.forEach(trade => {
+    if (!trade.is_winning) {
+      currentStreak++
+      if (currentStreak > maxStreak) maxStreak = currentStreak
+    } else {
+      currentStreak = 0
+    }
+  })
+  
+  return maxStreak
+}
+
+const calculateLongestTrade = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.entry_time && t.exit_time)
+  if (closedTrades.length === 0) return 0
+  
+  const durations = closedTrades.map(trade => {
+    const entry = new Date(trade.entry_time)
+    const exit = new Date(trade.exit_time!)
+    return Math.ceil((exit.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24))
+  })
+  
+  return Math.max(...durations)
+}
+
+const calculateShortestTrade = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.entry_time && t.exit_time)
+  if (closedTrades.length === 0) return 0
+  
+  const durations = closedTrades.map(trade => {
+    const entry = new Date(trade.entry_time)
+    const exit = new Date(trade.exit_time!)
+    return Math.ceil((exit.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24))
+  })
+  
+  return Math.min(...durations)
+}
+
+const calculateAverageHoldTime = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.entry_time && t.exit_time)
+  if (closedTrades.length === 0) return 0
+  
+  const totalDuration = closedTrades.reduce((sum, trade) => {
+    const entry = new Date(trade.entry_time)
+    const exit = new Date(trade.exit_time!)
+    return sum + Math.ceil((exit.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24))
+  }, 0)
+  
+  return Math.round(totalDuration / closedTrades.length)
+}
+
+const calculateWinLossRatio = (trades: Trade[]): number => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.is_winning !== null)
+  if (closedTrades.length === 0) return 0
+  
+  const winningTrades = closedTrades.filter(t => t.is_winning).length
+  const losingTrades = closedTrades.filter(t => !t.is_winning).length
+  
+  return losingTrades === 0 ? winningTrades : winningTrades / losingTrades
+}
+
+const getPerformanceByCategory = (trades: Trade[], categoryKey: keyof Trade) => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null)
+  if (closedTrades.length === 0) return []
+  
+  const categoryMap = new Map<string, { totalPnl: number; wins: number; total: number }>()
+  
+  closedTrades.forEach(trade => {
+    const category = trade[categoryKey] as string
+    if (!category) return
+    
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, { totalPnl: 0, wins: 0, total: 0 })
+    }
+    
+    const current = categoryMap.get(category)!
+    current.totalPnl += parseFloat(trade.pnl_amount?.toString() || '0')
+    current.total++
+    if (trade.is_winning) current.wins++
+  })
+  
+  return Array.from(categoryMap.entries()).map(([name, data]) => ({
+    name,
+    totalPnl: data.totalPnl,
+    winRate: (data.wins / data.total) * 100
+  }))
+}
+
+const getPerformanceByMonth = (trades: Trade[]) => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_amount !== null && t.exit_time)
+  if (closedTrades.length === 0) return []
+  
+  const monthMap = new Map<string, { totalPnl: number; trades: number }>()
+  
+  closedTrades.forEach(trade => {
+    const date = new Date(trade.exit_time!)
+    const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, { totalPnl: 0, trades: 0 })
+    }
+    
+    const current = monthMap.get(monthKey)!
+    current.totalPnl += parseFloat(trade.pnl_amount?.toString() || '0')
+    current.trades++
+  })
+  
+  return Array.from(monthMap.entries()).map(([name, data]) => ({
+    name,
+    totalPnl: data.totalPnl,
+    trades: data.trades
+  })).sort((a, b) => {
+    const [aMonth, aYear] = a.name.split(' ')
+    const [bMonth, bYear] = b.name.split(' ')
+    return new Date(`${aMonth} 1, ${aYear}`).getTime() - new Date(`${bMonth} 1, ${bYear}`).getTime()
+  })
+}
+
+const getYearlyCalendarData = (trades: Trade[]) => {
+  const closedTrades = trades.filter(t => t.status === 'closed' && t.exit_time)
+  if (closedTrades.length === 0) return []
+  
+  const yearMap = new Map<number, {
+    year: number
+    months: Array<{
+      pnl: number
+      winRate: number
+      trades: number
+    } | null>
+    total: {
+      pnl: number
+      winRate: number
+      trades: number
+    }
+  }>()
+  
+  // Initialize years from 2020 to current year
+  const currentYear = new Date().getFullYear()
+  for (let year = 2020; year <= currentYear; year++) {
+    yearMap.set(year, {
+      year,
+      months: new Array(12).fill(null),
+      total: { pnl: 0, winRate: 0, trades: 0 }
+    })
+  }
+  
+  // Process trades
+  closedTrades.forEach(trade => {
+    const date = new Date(trade.exit_time!)
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    
+    if (!yearMap.has(year)) {
+      yearMap.set(year, {
+        year,
+        months: new Array(12).fill(null),
+        total: { pnl: 0, winRate: 0, trades: 0 }
+      })
+    }
+    
+    const yearData = yearMap.get(year)!
+    const pnl = parseFloat(trade.pnl_amount?.toString() || '0')
+    
+    // Initialize month if null
+    if (!yearData.months[month]) {
+      yearData.months[month] = { pnl: 0, winRate: 0, trades: 0 }
+    }
+    
+    // Update month data
+    yearData.months[month]!.pnl += pnl
+    yearData.months[month]!.trades++
+    yearData.months[month]!.winRate = yearData.months[month]!.trades > 0 
+      ? (yearData.months[month]!.trades * (trade.is_winning ? 1 : 0)) / yearData.months[month]!.trades * 100
+      : 0
+    
+    // Update year totals
+    yearData.total.pnl += pnl
+    yearData.total.trades++
+  })
+  
+  // Calculate yearly win rates
+  yearMap.forEach((yearData) => {
+    const winningTrades = closedTrades
+      .filter(t => {
+        const date = new Date(t.exit_time!)
+        return date.getFullYear() === yearData.year && t.is_winning
+      }).length
+    
+    yearData.total.winRate = yearData.total.trades > 0 
+      ? (winningTrades / yearData.total.trades) * 100 
+      : 0
+  })
+  
+  // Convert to array and sort by year (newest first)
+  return Array.from(yearMap.values())
+    .filter(yearData => yearData.total.trades > 0) // Only show years with data
+    .sort((a, b) => b.year - a.year)
+}
+
+// Cache for monthly calendar data to prevent duplicate calculations
+const monthlyCalendarCache = new Map<string, any>()
+
+const getMonthlyCalendarData = (trades: Trade[], year: number, month: number) => {
+  // Create cache key
+  const cacheKey = `${year}-${month}-${trades.length}`
+  
+  // Check if we have cached data for this exact state
+  if (monthlyCalendarCache.has(cacheKey)) {
+    console.log(`Using cached calendar data for ${year}-${month}`)
+    return monthlyCalendarCache.get(cacheKey)
+  }
+  
+  console.log(`Calculating fresh calendar data for ${year}-${month}`)
+  
+  // More precise date filtering to avoid timezone issues
+  const closedTrades = trades.filter(t => {
+    if (t.status !== 'closed' || !t.exit_time) return false
+    
+    const exitDate = new Date(t.exit_time)
+    const tradeYear = exitDate.getFullYear()
+    const tradeMonth = exitDate.getMonth()
+    
+    // Strict year and month comparison
+    return tradeYear === year && tradeMonth === month
+  })
+  
+  if (closedTrades.length === 0) return null
+  
+  // Get month info
+  const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  
+  // Initialize daily data
+  const dailyData = new Map<number, {
+    day: number
+    trades: Trade[]
+    pnl: number
+    winRate: number
+    tradeCount: number
+  }>()
+  
+  // Initialize all days
+  for (let day = 1; day <= daysInMonth; day++) {
+    dailyData.set(day, {
+      day,
+      trades: [],
+      pnl: 0,
+      winRate: 0,
+      tradeCount: 0
+    })
+  }
+  
+  // Process trades for each day with better date handling
+  closedTrades.forEach(trade => {
+    const exitDate = new Date(trade.exit_time!)
+    
+    // Ensure we're working with the correct month
+    if (exitDate.getFullYear() !== year || exitDate.getMonth() !== month) {
+      console.warn(`Trade ${trade.id} has exit date ${trade.exit_time} but was filtered for ${year}-${month}`)
+      return
+    }
+    
+    const day = exitDate.getDate()
+    const pnl = parseFloat(trade.pnl_amount?.toString() || '0')
+    
+    const dayData = dailyData.get(day)
+    if (dayData) {
+      dayData.trades.push(trade)
+      dayData.pnl += pnl
+      dayData.tradeCount++
+    }
+  })
+  
+  // Calculate win rates for each day
+  dailyData.forEach((dayData) => {
+    if (dayData.tradeCount > 0) {
+      const winningTrades = dayData.trades.filter(t => t.is_winning).length
+      dayData.winRate = (winningTrades / dayData.tradeCount) * 100
+    }
+  })
+  
+  // Calculate month totals
+  const totalPnl = closedTrades.reduce((sum, t) => sum + parseFloat(t.pnl_amount?.toString() || '0'), 0)
+  const totalTrades = closedTrades.length
+  const winningTrades = closedTrades.filter(t => t.is_winning).length
+  const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0
+  
+  // Debug logging
+  console.log(`=== MONTHLY CALENDAR DEBUG: ${monthName} ===`)
+  console.log('Year:', year, 'Month:', month, 'Total Trades:', totalTrades)
+  console.log('Closed Trades Details:')
+  closedTrades.forEach((t, index) => {
+    const exitDate = new Date(t.exit_time!)
+    console.log(`  Trade ${index + 1}: ID=${t.id}, Exit=${t.exit_time}, Parsed=${exitDate.toISOString()}, Year=${exitDate.getFullYear()}, Month=${exitDate.getMonth()}, Day=${exitDate.getDate()}`)
+  })
+  
+  console.log('Daily Data Summary:')
+  dailyData.forEach((dayData) => {
+    if (dayData.tradeCount > 0) {
+      console.log(`  Day ${dayData.day}: ${dayData.tradeCount} trades, P&L: ${dayData.pnl}, Win Rate: ${dayData.winRate.toFixed(1)}%`)
+    }
+  })
+  console.log('=== END DEBUG ===')
+  
+  // Additional debug: Check for any trades that might be in wrong month
+  const allTradesInPeriod = trades.filter(t => 
+    t.status === 'closed' && 
+    t.exit_time && 
+    new Date(t.exit_time).getFullYear() === year &&
+    Math.abs(new Date(t.exit_time).getMonth() - month) <= 1 // Check adjacent months
+  )
+  
+  if (allTradesInPeriod.length > closedTrades.length) {
+    console.warn(`Found ${allTradesInPeriod.length - closedTrades.length} trades in adjacent months that might be causing confusion`)
+    allTradesInPeriod.forEach(t => {
+      const exitDate = new Date(t.exit_time!)
+      console.log(`Trade ${t.id}: ${t.exit_time} -> ${exitDate.toISOString()} -> Year: ${exitDate.getFullYear()}, Month: ${exitDate.getMonth()}, Day: ${exitDate.getDate()}`)
+    })
+  }
+  
+  const result = {
+    monthName,
+    year,
+    month,
+    dailyData: Array.from(dailyData.values()),
+    summary: {
+      totalPnl,
+      totalTrades,
+      winRate,
+      winningTrades,
+      losingTrades: totalTrades - winningTrades,
+      averagePnl: totalTrades > 0 ? totalPnl / totalTrades : 0
+    }
+  }
+  
+  // Cache the result
+  monthlyCalendarCache.set(cacheKey, result)
+  
+  return result
+}
+
+const getDailyTradeDetails = (trades: Trade[], year: number, month: number, day: number) => {
+  return trades.filter(t => 
+    t.status === 'closed' && 
+    t.exit_time &&
+    new Date(t.exit_time).getFullYear() === year &&
+    new Date(t.exit_time).getMonth() === month &&
+    new Date(t.exit_time).getDate() === day
+  )
 }
 
 export function TradingJournal() {
@@ -104,8 +643,7 @@ export function TradingJournal() {
     entry_reason: '',
     position_size: '',
     position_size_currency: 'USD',
-    leverage: '1.00',
-    screenshots: []
+    leverage: '1.00'
   })
   const [submitting, setSubmitting] = useState(false)
   const [closeFormData, setCloseFormData] = useState({
@@ -116,37 +654,71 @@ export function TradingJournal() {
     pnl_amount: '',
     pnl_percentage: '',
     lessons_learned: '',
-    next_time_actions: '',
-    screenshots: []
+    next_time_actions: ''
   })
   
   const [selectedTradeForView, setSelectedTradeForView] = useState<Trade | null>(null)
   const [showTradeViewModal, setShowTradeViewModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editFormData, setEditFormData] = useState<any>({})
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'analytics' | 'calendar'>('overview')
+  const [calendarView, setCalendarView] = useState<'winrate' | 'pnl' | 'trades'>('pnl')
+  const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number }>({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth()
+  })
+  const [calendarMode, setCalendarMode] = useState<'yearly' | 'monthly'>('yearly')
          
-         useEffect(() => {
+  useEffect(() => {
     if (user) {
       fetchTrades()
       fetchPerformance()
     }
   }, [user])
 
+  // Recalculate performance when trades change
+  useEffect(() => {
+    if (trades.length > 0) {
+      const closedTrades = trades.filter(t => t.status === 'closed')
+      const winningTrades = closedTrades.filter(t => t.is_winning === true).length
+      const losingTrades = closedTrades.filter(t => t.is_winning === false).length
+      const totalPnl = closedTrades.reduce((sum, t) => sum + (parseFloat(t.pnl_amount?.toString()) || 0), 0)
+      const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0
+      const averagePnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0
+      
+      console.log('Performance calculation:', {
+        totalTrades: trades.length,
+        closedTrades: closedTrades.length,
+        winningTrades,
+        losingTrades,
+        winRate,
+        totalPnl,
+        averagePnl
+      })
+      
+      setPerformance({
+        totalTrades: trades.length,
+        winningTrades,
+        losingTrades,
+        winRate,
+        totalPnl,
+        averagePnl
+      })
+    }
+  }, [trades])
+
   const fetchTrades = async () => {
     try {
-      console.log('Fetching trades...')
       const response = await fetch('/api/trading-journal/trades')
-      console.log('Trades response status:', response.status)
       if (response.ok) {
         const data = await response.json()
-        console.log('Trades data:', data)
+        console.log('Trades API response:', data)
         setTrades(data.trades || [])
       } else {
         const errorData = await response.json()
-        console.error('Error response:', errorData)
       }
     } catch (error) {
-      console.error('Error fetching trades:', error)
+      // Error handled silently
     } finally {
       setLoading(false)
     }
@@ -154,12 +726,11 @@ export function TradingJournal() {
 
   const fetchPerformance = async () => {
     try {
-      console.log('Fetching performance...')
       const response = await fetch('/api/trading-journal/performance')
-      console.log('Performance response status:', response.status)
       if (response.ok) {
         const data = await response.json()
-        console.log('Performance data:', data)
+        console.log('Performance API response:', data)
+        console.log('Overall stats:', data.overallStats)
         setPerformance(data.overallStats || {
           totalTrades: 0,
           winningTrades: 0,
@@ -170,10 +741,48 @@ export function TradingJournal() {
         })
       } else {
         const errorData = await response.json()
-        console.error('Performance error response:', errorData)
+        console.error('Performance API error:', errorData)
+        
+        // Fallback: calculate performance from trades data
+        if (trades.length > 0) {
+          const closedTrades = trades.filter(t => t.status === 'closed')
+          const winningTrades = closedTrades.filter(t => t.is_winning === true).length
+          const losingTrades = closedTrades.filter(t => t.is_winning === false).length
+          const totalPnl = closedTrades.reduce((sum, t) => sum + (parseFloat(t.pnl_amount?.toString()) || 0), 0)
+          const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0
+          const averagePnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0
+          
+          setPerformance({
+            totalTrades: trades.length,
+            winningTrades,
+            losingTrades,
+            winRate,
+            totalPnl,
+            averagePnl
+          })
+        }
       }
     } catch (error) {
-      console.error('Error fetching performance:', error)
+      console.error('Performance fetch error:', error)
+      
+      // Fallback: calculate performance from trades data
+      if (trades.length > 0) {
+        const closedTrades = trades.filter(t => t.status === 'closed')
+        const winningTrades = closedTrades.filter(t => t.is_winning === true).length
+        const losingTrades = closedTrades.filter(t => t.is_winning === false).length
+        const totalPnl = closedTrades.reduce((sum, t) => sum + (parseFloat(t.pnl_amount?.toString()) || 0), 0)
+        const winRate = closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0
+        const averagePnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0
+        
+        setPerformance({
+          totalTrades: trades.length,
+          winningTrades,
+          losingTrades,
+          winRate,
+          totalPnl,
+          averagePnl
+        })
+      }
     }
   }
 
@@ -186,18 +795,36 @@ export function TradingJournal() {
     setSubmitting(true)
     
     try {
+      // Create FormData for file uploads
+      const formDataToSend = new FormData()
+      
+      // Add only non-empty form fields
+      Object.keys(formData).forEach(key => {
+        if (key !== 'screenshots' && formData[key as keyof typeof formData]) {
+          const value = formData[key as keyof typeof formData]
+          if (typeof value === 'string' && value.trim() !== '') {
+            formDataToSend.append(key, value)
+          }
+        }
+      })
+      
+
+      
+      // Add parsed values
+      formDataToSend.set('entry_price', parseFloat(formData.entry_price).toString())
+      formDataToSend.set('position_size', parseFloat(formData.position_size).toString())
+      formDataToSend.set('leverage', parseFloat(formData.leverage).toString())
+      formDataToSend.set('entry_time', formData.entry_time || new Date().toISOString().slice(0, 16))
+
+      // Debug: Log what's being sent
+      console.log('FormData being sent:')
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(`${key}:`, value)
+      }
+
       const response = await fetch('/api/trading-journal/trades', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          entry_price: parseFloat(formData.entry_price),
-          position_size: parseFloat(formData.position_size),
-          leverage: parseFloat(formData.leverage),
-          entry_time: formData.entry_time || new Date().toISOString().slice(0, 16)
-        })
+        body: formDataToSend
       })
 
       if (response.ok) {
@@ -205,7 +832,6 @@ export function TradingJournal() {
         setTrades(prev => [newTrade, ...prev])
         setShowTradeForm(false)
         setFormData({
-          trade_id: '',
           symbol: '',
           instrument_type: '',
           direction: '',
@@ -223,7 +849,6 @@ export function TradingJournal() {
         alert(`Error creating trade: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error creating trade:', error)
       alert('Error creating trade. Please try again.')
     } finally {
       setSubmitting(false)
@@ -240,8 +865,7 @@ export function TradingJournal() {
       entry_time: '',
       position_size: '',
       position_size_currency: 'USD',
-      leverage: '1.00',
-      screenshots: []
+      leverage: '1.00'
     })
   }
   
@@ -254,8 +878,7 @@ export function TradingJournal() {
       pnl_amount: '',
       pnl_percentage: '',
       lessons_learned: '',
-      next_time_actions: '',
-      screenshots: []
+      next_time_actions: ''
     })
   }
   
@@ -269,8 +892,7 @@ export function TradingJournal() {
       pnl_amount: '',
       pnl_percentage: '',
       lessons_learned: '',
-      next_time_actions: '',
-      screenshots: []
+      next_time_actions: ''
     })
     setShowCloseTradeForm(true)
   }
@@ -281,20 +903,38 @@ export function TradingJournal() {
     
     setSubmitting(true)
     try {
+      // Create FormData for file uploads
+      const formDataToSend = new FormData()
+      
+      // Add all form fields
+      Object.keys(closeFormData).forEach(key => {
+        if (key !== 'screenshots') {
+          const value = closeFormData[key as keyof typeof closeFormData]
+          if (typeof value === 'string' && value.trim() !== '') {
+            formDataToSend.append(key, value)
+          }
+        }
+      })
+      
+
+      
+      // Add parsed values
+      formDataToSend.set('exit_price', parseFloat(closeFormData.exit_price).toString())
+      if (closeFormData.pnl_amount) {
+        formDataToSend.set('pnl_amount', parseFloat(closeFormData.pnl_amount).toString())
+      }
+      if (closeFormData.pnl_percentage) {
+        formDataToSend.set('pnl_percentage', parseFloat(closeFormData.pnl_percentage).toString())
+      }
+
       const response = await fetch(`/api/trading-journal/trades/${selectedTrade.id}/close`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...closeFormData,
-          exit_price: parseFloat(closeFormData.exit_price),
-          pnl_amount: parseFloat(closeFormData.pnl_amount),
-          pnl_percentage: parseFloat(closeFormData.pnl_percentage)
-        })
+        body: formDataToSend
       })
       
       if (response.ok) {
         const updatedTrade = await response.json()
-        setTrades(prev => prev.map(trade => 
+        setTrades((prev: Trade[]) => prev.map(trade => 
           trade.id === selectedTrade.id ? updatedTrade : trade
         ))
         setShowCloseTradeForm(false)
@@ -306,25 +946,73 @@ export function TradingJournal() {
         alert(`Error closing trade: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error closing trade:', error)
       alert('Error closing trade. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
   
-  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>, formType: 'create' | 'close') => {
-    const files = Array.from(e.target.files || [])
-    if (formType === 'create') {
-      setFormData(prev => ({ ...prev, screenshots: files }))
-    } else {
-      setCloseFormData(prev => ({ ...prev, screenshots: files }))
-    }
-  }
+
+
+
+
+
   
   const handleViewTrade = (trade: Trade) => {
+    console.log('Viewing trade:', trade)
+    console.log('Trade screenshots:', trade.screenshots)
     setSelectedTradeForView(trade)
     setShowTradeViewModal(true)
+  }
+
+  const addScreenshotsToTrade = async (tradeId: number, files: File[], type: 'entry' | 'exit' = 'entry') => {
+    try {
+      const formData = new FormData()
+      files.forEach(file => {
+        formData.append('screenshots', file)
+      })
+      formData.append('type', type)
+
+      const response = await fetch(`/api/trading-journal/trades/${tradeId}/screenshots`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Refresh the trade view to show new screenshots
+        const updatedTrade = await fetch(`/api/trading-journal/trades/${tradeId}/screenshots`).then(res => res.json())
+        setSelectedTradeForView(prev => prev ? { ...prev, screenshots: updatedTrade.screenshots } : null)
+        alert('Screenshots added successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Error adding screenshots: ${error.error}`)
+      }
+    } catch (error) {
+      alert('Error adding screenshots. Please try again.')
+    }
+  }
+
+  const removeScreenshotFromTrade = async (tradeId: number, screenshotId: number) => {
+    try {
+      const response = await fetch(`/api/trading-journal/trades/${tradeId}/screenshots?id=${screenshotId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        // Remove screenshot from local state
+        setSelectedTradeForView(prev => prev ? {
+          ...prev,
+          screenshots: prev.screenshots?.filter(s => s.id !== screenshotId) || []
+        } : null)
+        alert('Screenshot removed successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Error removing screenshot: ${error.error}`)
+      }
+    } catch (error) {
+      alert('Error removing screenshot. Please try again.')
+    }
   }
   
   const handleEditTrade = (trade: Trade) => {
@@ -374,7 +1062,6 @@ export function TradingJournal() {
         alert(`Error updating trade: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error updating trade:', error)
       alert('Error updating trade. Please try again.')
     } finally {
       setSubmitting(false)
@@ -399,7 +1086,6 @@ export function TradingJournal() {
         alert(`Error deleting trade: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error deleting trade:', error)
       alert('Error deleting trade. Please try again.')
     }
   }
@@ -417,6 +1103,8 @@ export function TradingJournal() {
     const num = Number(value)
     return isNaN(num) ? 0 : num
   }
+
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -437,72 +1125,906 @@ export function TradingJournal() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Trading Journal</h1>
-          <p className="text-muted-foreground">Track your trades, analyze performance, and improve your strategy</p>
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Trading Journal</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">Track your trades, analyze performance, and improve your strategy</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <ThemeToggle />
+            <Button variant="outline" size="sm">
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Filters
+            </Button>
+            <Button variant="outline" size="sm">
+              <Calendar className="mr-2 h-4 w-4" />
+              Date Range
+            </Button>
+            <Button onClick={() => setShowTradeForm(true)} className="bg-purple-600 hover:bg-purple-700">
+              <Plus className="mr-2 h-4 w-4" />
+              New Trade
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setShowTradeForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Trade
-        </Button>
       </div>
 
-      {/* Performance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{performance.totalTrades}</div>
-            <p className="text-xs text-muted-foreground">
-              {performance.winningTrades} winning, {performance.losingTrades} losing
-            </p>
-          </CardContent>
-        </Card>
+      {/* Navigation Tabs */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-6">
+          <nav className="flex space-x-8">
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'trades', label: 'Trades', icon: FileText },
+              { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+              { id: 'calendar', label: 'Calendar', icon: Calendar }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <tab.icon className="inline-block w-4 h-4 mr-2" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
 
-         <Card>
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-             <Target className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent>
-             <div className="text-2xl font-bold">{safeNumber(performance.winRate).toFixed(1)}%</div>
-             <Progress value={safeNumber(performance.winRate)} className="mt-2" />
-           </CardContent>
-         </Card>
+      {/* Main Content */}
+      <div className="px-6 py-6 bg-gray-50 dark:bg-gray-900">
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Performance Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Net P&L</CardTitle>
+                  <div className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                    {performance.totalTrades}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${safeNumber(performance.totalPnl) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(safeNumber(performance.totalPnl))}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total profit/loss</div>
+                </CardContent>
+              </Card>
 
-         <Card>
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <CardTitle className="text-sm font-medium">Total P&L</CardTitle>
-             <DollarSign className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent>
-             <div className={`text-2xl font-bold ${safeNumber(performance.totalPnl) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-               {formatCurrency(safeNumber(performance.totalPnl))}
-             </div>
-             <p className="text-xs text-muted-foreground">
-               Avg: {formatCurrency(safeNumber(performance.averagePnl))}
-             </p>
-           </CardContent>
-         </Card>
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Trade Win %</CardTitle>
+                  <Target className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {performance.totalTrades > 0 ? (performance.winningTrades / performance.totalTrades * 100).toFixed(1) : '0.0'}%
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${performance.totalTrades > 0 ? (performance.winningTrades / performance.totalTrades * 100) : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">{performance.winningTrades}</span>
+                    <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">{performance.totalTrades - performance.winningTrades - performance.losingTrades}</span>
+                    <span className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded-full">{performance.losingTrades}</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Trades</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {trades.filter(t => t.status === 'open').length}
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Profit Factor</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {performance.totalTrades > 0 ? (safeNumber(performance.totalPnl) / Math.abs(performance.losingTrades > 0 ? performance.totalPnl / performance.totalTrades : 1)).toFixed(2) : '0.00'}
+                  </div>
+                  <div className="w-16 h-16 mx-auto mt-2">
+                    <div className="w-full h-full rounded-full border-4 border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400">PF</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Day Win %</CardTitle>
+                  <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {performance.totalTrades > 0 ? (performance.winningTrades / performance.totalTrades * 100).toFixed(1) : '0.0'}%
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${performance.totalTrades > 0 ? (performance.winningTrades / performance.totalTrades * 100) : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Avg Win/Loss</CardTitle>
+                  <DollarSign className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {performance.totalTrades > 0 ? (safeNumber(performance.totalPnl) / performance.totalTrades).toFixed(2) : '0.00'}
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                      <div className="bg-green-500 h-2 rounded-full" style={{ width: '70%' }}></div>
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: '30%' }}></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <span className="text-green-600">${performance.totalTrades > 0 ? (safeNumber(performance.totalPnl) / performance.totalTrades).toFixed(0) : '0'}</span>
+                    <span className="text-red-600">-${Math.abs(performance.totalTrades > 0 ? (safeNumber(performance.totalPnl) / performance.totalTrades).toFixed(0) : '0')}</span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <p className="text-xs text-muted-foreground">Active positions</p>
-          </CardContent>
-        </Card>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* P&L Over Time Chart */}
+              <div className="lg:col-span-2">
+                <PnLChart trades={trades} />
+              </div>
+              
+              {/* Win Rate Trend Chart */}
+              <div>
+                <WinRateChart trades={trades} />
+              </div>
+              
+              {/* Trade Distribution Chart */}
+              <div>
+                <TradeDistributionChart trades={trades} />
+              </div>
+            </div>
+            
+            {/* Monthly Performance Chart */}
+            <div className="mt-6">
+              <MonthlyPerformanceChart trades={trades} />
+            </div>
+
+            {/* Recent Trades */}
+            <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Recent Trades</CardTitle>
+                    <CardDescription className="dark:text-gray-300">Your latest trading activity</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('trades')}>
+                    View All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-200">Close Date</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-200">Symbol</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-200">Net P&L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trades.slice(0, 5).map((trade) => (
+                        <tr key={trade.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onClick={() => handleViewTrade(trade)}>
+                          <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
+                            {trade.exit_time ? new Date(trade.exit_time).toLocaleDateString() : 'Open'}
+                          </td>
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-white">{trade.symbol}</td>
+                          <td className={`py-3 px-4 text-sm font-medium ${trade.pnl_amount && trade.pnl_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {trade.pnl_amount ? formatCurrency(trade.pnl_amount) : '--'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'trades' && (
+          <div className="space-y-6">
+            {/* Trades Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">All Trades</h2>
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+                <Button variant="outline" size="sm">
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Analyze
+                </Button>
+              </div>
+            </div>
+
+            {/* Trades Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {trades.map((trade) => (
+                <Card key={trade.id} className="bg-white dark:bg-gray-800 border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleViewTrade(trade)}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge variant={trade.direction === 'long' ? 'default' : 'secondary'} className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                        {trade.direction.toUpperCase()}
+                      </Badge>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{trade.instrument_type}</span>
+                    </div>
+                    <h3 className="font-semibold text-xl mb-2 text-gray-900 dark:text-white">{trade.symbol}</h3>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Entry Price:</span>
+                        <span className="font-medium text-gray-900 dark:text-white">${trade.entry_price}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Position Size:</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{trade.position_size} {trade.position_size_currency}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-300">Leverage:</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{trade.leverage}x</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge variant={trade.status === 'open' ? 'outline' : trade.status === 'closed' ? 'default' : 'secondary'}>
+                        {trade.status}
+                      </Badge>
+                      {trade.pnl_amount && (
+                        <span className={`text-sm font-medium ${trade.pnl_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(trade.pnl_amount)}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            {/* Analytics Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Trading Analytics</h2>
+                <p className="text-gray-600 dark:text-gray-300 mt-1">Deep dive into your trading performance and patterns</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Data
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Date Range
+                </Button>
+              </div>
+            </div>
+
+            {/* Key Performance Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Sharpe Ratio</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {calculateSharpeRatio(trades).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Risk-adjusted returns</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Max Drawdown</CardTitle>
+                  <TrendingDown className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {calculateMaxDrawdown(trades).toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Largest peak to trough</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Profit Factor</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {calculateProfitFactor(trades).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Gross profit / Gross loss</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Expectancy</CardTitle>
+                  <Target className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    ${calculateExpectancy(trades).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Expected P&L per trade</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Advanced Analytics Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Risk Analysis */}
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Risk Analysis</CardTitle>
+                  <CardDescription className="dark:text-gray-300">Portfolio risk metrics and volatility</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {calculateVolatility(trades).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Volatility</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {calculateVaR(trades).toFixed(0)}%
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Value at Risk</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Largest Win:</span>
+                      <span className="font-medium text-green-600">
+                        ${calculateLargestWin(trades).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Largest Loss:</span>
+                      <span className="font-medium text-red-600">
+                        ${calculateLargestLoss(trades).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Average Win:</span>
+                      <span className="font-medium text-green-600">
+                        ${calculateAverageWin(trades).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Average Loss:</span>
+                      <span className="font-medium text-red-600">
+                        ${calculateAverageLoss(trades).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Trade Analysis */}
+              <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Trade Analysis</CardTitle>
+                  <CardDescription className="dark:text-gray-300">Detailed trade statistics and patterns</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {calculateConsecutiveWins(trades)}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Best Streak</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {calculateConsecutiveLosses(trades)}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Worst Streak</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Longest Trade:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {calculateLongestTrade(trades)} days
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Shortest Trade:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {calculateShortestTrade(trades)} days
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Average Hold Time:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {calculateAverageHoldTime(trades)} days
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-300">Win/Loss Ratio:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {calculateWinLossRatio(trades).toFixed(2)}:1
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Performance by Category */}
+            <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Performance by Category</CardTitle>
+                <CardDescription className="dark:text-gray-300">Breakdown of performance by instrument type and direction</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* By Instrument Type */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">By Instrument Type</h4>
+                    <div className="space-y-2">
+                      {getPerformanceByCategory(trades, 'instrument_type').map((category) => (
+                        <div key={category.name} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{category.name}</span>
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              ${category.totalPnl.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {category.winRate.toFixed(1)}% win rate
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* By Direction */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">By Direction</h4>
+                    <div className="space-y-2">
+                      {getPerformanceByCategory(trades, 'direction').map((category) => (
+                        <div key={category.name} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{category.name}</span>
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              ${category.totalPnl.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {category.winRate.toFixed(1)}% win rate
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* By Month */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">By Month</h4>
+                    <div className="space-y-2">
+                      {getPerformanceByMonth(trades).slice(-6).map((month) => (
+                        <div key={month.name} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{month.name}</span>
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              ${month.totalPnl.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {month.trades} trades
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'calendar' && (
+          <div className="space-y-6">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Trading Calendar</h2>
+                <p className="text-gray-600 dark:text-gray-300 mt-1">Detailed daily and monthly performance overview</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Calendar
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Date Range
+                </Button>
+              </div>
+            </div>
+
+            {/* Calendar Mode Toggle */}
+            <div className="flex items-center space-x-4">
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                <button
+                  onClick={() => setCalendarMode('yearly')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    calendarMode === 'yearly'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Yearly Overview
+                </button>
+                <button
+                  onClick={() => setCalendarMode('monthly')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    calendarMode === 'monthly'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Monthly Detail
+                </button>
+              </div>
+            </div>
+
+            {/* Yearly Calendar View */}
+            {calendarMode === 'yearly' && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex border-b border-gray-200 dark:border-gray-700">
+                  {[
+                    { id: 'winrate', label: 'Win Rate', icon: Target },
+                    { id: 'pnl', label: 'P&L', icon: DollarSign },
+                    { id: 'trades', label: 'Trades', icon: BarChart3 }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setCalendarView(tab.id as 'winrate' | 'pnl' | 'trades')}
+                      className={`flex items-center px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        calendarView === tab.id
+                          ? 'border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20'
+                          : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <tab.icon className="w-4 h-4 mr-2" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Yearly Calendar Grid */}
+                <div className="p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-200">Year</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Jan</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Feb</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Mar</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Apr</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">May</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Jun</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Jul</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Aug</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Sep</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Oct</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Nov</th>
+                          <th className="text-center py-3 px-2 text-sm font-medium text-gray-700 dark:text-gray-200">Dec</th>
+                          <th className="text-center py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-200">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getYearlyCalendarData(trades).map((yearData) => (
+                          <tr key={yearData.year} className="border-b border-gray-100 dark:border-gray-700">
+                            <td className="py-4 px-4 text-sm font-medium text-gray-900 dark:text-white">
+                              {yearData.year}
+                            </td>
+                            {yearData.months.map((month, monthIndex) => (
+                              <td key={monthIndex} className="py-4 px-2 text-center">
+                                {month ? (
+                                  <div className={`inline-block p-3 rounded-lg min-w-[80px] ${
+                                    calendarView === 'pnl' 
+                                      ? month.pnl >= 0 
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                      : calendarView === 'winrate'
+                                      ? month.winRate >= 50
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                  }`}>
+                                    <div className="text-sm font-semibold">
+                                      {calendarView === 'pnl' 
+                                        ? formatCurrency(month.pnl)
+                                        : calendarView === 'winrate'
+                                        ? `${month.winRate.toFixed(1)}%`
+                                        : month.trades
+                                      }
+                                    </div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      {calendarView === 'pnl' || calendarView === 'winrate'
+                                        ? `${month.trades} trades`
+                                        : 'trades'
+                                      }
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-400 dark:text-gray-600">--</div>
+                                )}
+                              </td>
+                            ))}
+                            <td className="py-4 px-4 text-center">
+                              <div className={`inline-block p-3 rounded-lg min-w-[80px] ${
+                                calendarView === 'pnl' 
+                                  ? yearData.total.pnl >= 0 
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                  : calendarView === 'winrate'
+                                  ? yearData.total.winRate >= 50
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                              }`}>
+                                <div className="text-sm font-semibold">
+                                  {calendarView === 'pnl' 
+                                    ? formatCurrency(yearData.total.pnl)
+                                    : calendarView === 'winrate'
+                                    ? `${yearData.total.winRate.toFixed(1)}%`
+                                    : yearData.total.trades
+                                  }
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                  {calendarView === 'pnl' || calendarView === 'winrate'
+                                    ? `${yearData.total.trades} trades`
+                                    : 'trades'
+                                  }
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Monthly Calendar View */}
+            {calendarMode === 'monthly' && (
+              <div className="space-y-6">
+                {/* Month Navigation */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newMonth = selectedMonth.month === 0 ? 11 : selectedMonth.month - 1
+                        const newYear = selectedMonth.month === 0 ? selectedMonth.year - 1 : selectedMonth.year
+                        setSelectedMonth({ year: newYear, month: newMonth })
+                      }}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-2" />
+                      Previous Month
+                    </Button>
+                    
+                    <div className="text-center">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        {new Date(selectedMonth.year, selectedMonth.month).toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        Click on any day to view detailed trades
+                      </p>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newMonth = selectedMonth.month === 11 ? 0 : selectedMonth.month + 1
+                        const newYear = selectedMonth.month === 11 ? selectedMonth.year + 1 : selectedMonth.year
+                        setSelectedMonth({ year: newYear, month: newMonth })
+                      }}
+                    >
+                      Next Month
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Monthly Summary */}
+                {(() => {
+                  const monthData = getMonthlyCalendarData(trades, selectedMonth.year, selectedMonth.month)
+                  return monthData ? (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Total P&L</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className={`text-2xl font-bold ${
+                            monthData.summary.totalPnl >= 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatCurrency(monthData.summary.totalPnl)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Total Trades</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {monthData.summary.totalTrades}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Win Rate</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {monthData.summary.winRate.toFixed(1)}%
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-200">Avg P&L</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className={`text-2xl font-bold ${
+                            monthData.summary.averagePnl >= 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatCurrency(monthData.summary.averagePnl)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
+                    <Card className="bg-white dark:bg-gray-800 border-0 shadow-sm">
+                      <CardContent className="text-center py-8">
+                        <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                        <p className="text-gray-600 dark:text-gray-400">No trades found for this month</p>
+                      </CardContent>
+                    </Card>
+                  )
+                })()}
+
+                {/* Daily Calendar Grid */}
+                {(() => {
+                  const monthData = getMonthlyCalendarData(trades, selectedMonth.year, selectedMonth.month)
+                  if (!monthData) return null
+                  
+                  const firstDayOfMonth = new Date(selectedMonth.year, selectedMonth.month, 1)
+                  const lastDayOfMonth = new Date(selectedMonth.year, selectedMonth.month + 1, 0)
+                  const startDate = new Date(firstDayOfMonth)
+                  startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay())
+                  
+                  const calendarDays = []
+                  const currentDate = new Date(startDate)
+                  
+                  while (currentDate <= lastDayOfMonth || currentDate.getDay() !== 0) {
+                    calendarDays.push(new Date(currentDate))
+                    currentDate.setDate(currentDate.getDate() + 1)
+                  }
+                  
+                  return (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                      <div className="grid grid-cols-7 gap-1">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                          <div key={day} className="text-center py-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+                            {day}
+                          </div>
+                        ))}
+                        
+                        {calendarDays.map((date, index) => {
+                          const isCurrentMonth = date.getMonth() === selectedMonth.month
+                          // Only show trade data for the current month, not adjacent months
+                          const dayData = isCurrentMonth ? monthData.dailyData.find(d => d.day === date.getDate()) : null
+                          const hasTrades = isCurrentMonth && dayData && dayData.tradeCount > 0
+                          
+                          return (
+                            <div
+                              key={index}
+                              className={`min-h-[80px] p-2 border border-gray-100 dark:border-gray-700 ${
+                                isCurrentMonth ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900'
+                              }`}
+                            >
+                              <div className={`text-sm font-medium mb-1 ${
+                                isCurrentMonth ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'
+                              }`}>
+                                {date.getDate()}
+                              </div>
+                              
+                              {hasTrades && dayData && (
+                                <div className="space-y-1">
+                                  <div className={`text-xs px-2 py-1 rounded ${
+                                    calendarView === 'pnl'
+                                      ? dayData.pnl >= 0
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                      : calendarView === 'winrate'
+                                      ? dayData.winRate >= 50
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200'
+                                  }`}>
+                                    {calendarView === 'pnl' 
+                                      ? formatCurrency(dayData.pnl)
+                                      : calendarView === 'winrate'
+                                      ? `${dayData.winRate.toFixed(1)}%`
+                                      : dayData.tradeCount
+                                    }
+                                  </div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                                    {dayData.tradeCount} trade{dayData.tradeCount !== 1 ? 's' : ''}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Open Trades - Card View */}
@@ -756,33 +2278,7 @@ export function TradingJournal() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="screenshots">Screenshots</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-600 mb-2">Upload trade screenshots</p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handleScreenshotUpload(e, 'create')}
-                  className="hidden"
-                  id="screenshots"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('screenshots')?.click()}
-                >
-                  Choose Files
-                </Button>
-                {formData.screenshots.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    {formData.screenshots.length} file(s) selected
-                  </p>
-                )}
-              </div>
-            </div>
+
 
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="outline" onClick={() => {
@@ -915,33 +2411,7 @@ export function TradingJournal() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="close_screenshots">Screenshots</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-600 mb-2">Upload exit screenshots</p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handleScreenshotUpload(e, 'close')}
-                  className="hidden"
-                  id="close_screenshots"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('close_screenshots')?.click()}
-                >
-                  Choose Files
-                </Button>
-                {closeFormData.screenshots.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    {closeFormData.screenshots.length} file(s) selected
-                  </p>
-                )}
-              </div>
-            </div>
+
 
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="outline" onClick={() => {
@@ -1087,22 +2557,75 @@ export function TradingJournal() {
               </div>
 
               {/* Screenshots */}
-              {selectedTradeForView.screenshots && selectedTradeForView.screenshots.length > 0 && (
-                <div className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
                   <h4 className="font-semibold text-lg">Screenshots</h4>
+                  <div className="flex space-x-2">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      id="add-screenshots"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || [])
+                        if (files.length > 0) {
+                          addScreenshotsToTrade(selectedTradeForView.id, files, selectedTradeForView.status === 'closed' ? 'exit' : 'entry')
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('add-screenshots')?.click()}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Screenshots
+                    </Button>
+                  </div>
+                </div>
+                
+                {selectedTradeForView?.screenshots && selectedTradeForView.screenshots.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {selectedTradeForView.screenshots.map((screenshot: any, index: number) => (
-                      <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                    {selectedTradeForView.screenshots.map((screenshot) => (
+                      <div key={screenshot.id} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group">
                         <img 
-                          src={screenshot.url || URL.createObjectURL(screenshot)} 
-                          alt={`Trade screenshot ${index + 1}`}
+                          src={screenshot.file_url} 
+                          alt={`Trade screenshot - ${screenshot.original_name}`}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Image failed to load:', screenshot.file_url)
+                            e.currentTarget.src = '/placeholder-image.svg'
+                          }}
                         />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            onClick={() => removeScreenshotFromTrade(selectedTradeForView.id, screenshot.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="absolute top-2 left-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {screenshot.screenshot_type}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      <FileText className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                      <p>No screenshots uploaded for this trade</p>
+                      <p className="text-sm">Click "Add Screenshots" to upload images</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

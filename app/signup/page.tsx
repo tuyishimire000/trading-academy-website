@@ -168,7 +168,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center mb-4 sm:mb-6">
@@ -178,10 +178,10 @@ export default function SignUpPage() {
           </Link>
         </div>
 
-        <Card className="w-full">
+        <Card className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl sm:text-2xl text-center">Create Your Account</CardTitle>
-            <CardDescription className="text-center text-sm sm:text-base">
+            <CardTitle className="text-xl sm:text-2xl text-center text-gray-900 dark:text-white">Create Your Account</CardTitle>
+            <CardDescription className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-300">
               Join thousands of successful traders today
             </CardDescription>
           </CardHeader>
@@ -189,7 +189,7 @@ export default function SignUpPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-sm">
+                  <Label htmlFor="firstName" className="text-sm text-gray-700 dark:text-gray-200">
                     First Name
                   </Label>
                   <Input
@@ -199,11 +199,11 @@ export default function SignUpPage() {
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     required
-                    className="h-10"
+                    className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-sm">
+                  <Label htmlFor="lastName" className="text-sm text-gray-700 dark:text-gray-200">
                     Last Name
                   </Label>
                   <Input
@@ -213,13 +213,13 @@ export default function SignUpPage() {
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     required
-                    className="h-10"
+                    className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm">
+                <Label htmlFor="email" className="text-sm text-gray-700 dark:text-gray-200">
                   Email
                 </Label>
                 <Input
@@ -229,16 +229,16 @@ export default function SignUpPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-sm">
+                <Label htmlFor="phoneNumber" className="text-sm text-gray-700 dark:text-gray-200">
                   Phone Number
                 </Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                   <Input
                     id="phoneNumber"
                     type="tel"
@@ -246,16 +246,16 @@ export default function SignUpPage() {
                     value={formData.phoneNumber}
                     onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                     required
-                    className="h-10 pl-10"
+                    className="h-10 pl-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   Enter your phone number with country code (e.g., +1 for US)
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm">
+                <Label htmlFor="password" className="text-sm text-gray-700 dark:text-gray-200">
                   Password
                 </Label>
                 <Input
@@ -266,12 +266,12 @@ export default function SignUpPage() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                   minLength={6}
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-sm">
+                <Label htmlFor="confirmPassword" className="text-sm text-gray-700 dark:text-gray-200">
                   Confirm Password
                 </Label>
                 <Input
@@ -281,14 +281,14 @@ export default function SignUpPage() {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="plan" className="text-sm">
+                <Label htmlFor="plan" className="text-sm text-gray-700 dark:text-gray-200">
                   Subscription Plan
-                  {isPlanLocked && <span className="text-xs text-amber-600 ml-2">(Pre-selected)</span>}
+                  {isPlanLocked && <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">(Pre-selected)</span>}
                 </Label>
                 <Select 
                   value={selectedPlanId || ""} 
@@ -300,21 +300,21 @@ export default function SignUpPage() {
                   }}
                   disabled={isPlanLocked}
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
                     <SelectValue placeholder="Select a plan" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
                     {subscriptionPlans
                       .filter((plan: any) => plan.id && plan.id.trim() !== '') // Filter out plans with empty IDs
                       .map((plan: any) => (
-                        <SelectItem key={plan.id} value={plan.id}>
+                        <SelectItem key={plan.id} value={plan.id} className="text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
                           {plan.display_name || plan.name} - {formatPrice(plan.price, plan.billing_cycle)}
                         </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
                 {isPlanLocked && (
-                  <p className="text-xs text-amber-600">
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
                     This plan was pre-selected based on your choice from the landing page.
                   </p>
                 )}
@@ -325,9 +325,9 @@ export default function SignUpPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
+            <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
-              <Link href="/login" className="text-amber-500 hover:underline">
+              <Link href="/login" className="text-amber-500 dark:text-amber-400 hover:underline">
                 Sign in
               </Link>
             </div>

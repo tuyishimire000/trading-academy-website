@@ -2052,7 +2052,7 @@ export class TradingJournalTrade extends Model {
   declare notes: string | null
   declare lessons_learned: string | null
   declare next_time_actions: string | null
-  declare screenshots: any
+
   declare created_at: Date
   declare updated_at: Date
 }
@@ -2094,13 +2094,51 @@ TradingJournalTrade.init(
     notes: { type: DataTypes.TEXT, allowNull: true },
     lessons_learned: { type: DataTypes.TEXT, allowNull: true },
     next_time_actions: { type: DataTypes.TEXT, allowNull: true },
-    screenshots: { type: DataTypes.JSON, allowNull: true },
+
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },
   {
     sequelize,
     tableName: 'trading_journal_trades',
+    timestamps: false,
+    underscored: true,
+  }
+)
+
+export class Screenshot extends Model {
+  declare id: number
+  declare trade_id: number
+  declare user_id: string
+  declare filename: string
+  declare original_name: string
+  declare file_path: string
+  declare file_url: string
+  declare file_size: number
+  declare mime_type: string
+  declare screenshot_type: 'entry' | 'exit'
+  declare created_at: Date
+  declare updated_at: Date
+}
+
+Screenshot.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    trade_id: { type: DataTypes.INTEGER, allowNull: false },
+    user_id: { type: DataTypes.CHAR(36), allowNull: false },
+    filename: { type: DataTypes.STRING(255), allowNull: false },
+    original_name: { type: DataTypes.STRING(255), allowNull: false },
+    file_path: { type: DataTypes.TEXT, allowNull: false },
+    file_url: { type: DataTypes.TEXT, allowNull: false },
+    file_size: { type: DataTypes.BIGINT, allowNull: false },
+    mime_type: { type: DataTypes.STRING(100), allowNull: false },
+    screenshot_type: { type: DataTypes.ENUM('entry', 'exit'), allowNull: false, defaultValue: 'entry' },
+    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  {
+    sequelize,
+    tableName: 'screenshots',
     timestamps: false,
     underscored: true,
   }
@@ -2298,7 +2336,9 @@ TradingJournalChecklist.hasMany(TradingJournalChecklistItem, { foreignKey: "chec
 TradingJournalChecklistItem.belongsTo(TradingJournalChecklist, { foreignKey: "checklist_id", as: "checklist" })
 
 User.hasMany(TradingJournalTrade, { foreignKey: "user_id", as: "tradingTrades" })
-TradingJournalTrade.belongsTo(User, { foreignKey: "user_id", as: "user" })
+  TradingJournalTrade.belongsTo(User, { foreignKey: "user_id", as: "user" })
+  
+
 
 User.hasMany(TradingJournalStrategy, { foreignKey: "user_id", as: "strategies" })
 TradingJournalStrategy.belongsTo(User, { foreignKey: "user_id", as: "user" })
@@ -2317,5 +2357,13 @@ TradingJournalGoal.belongsTo(User, { foreignKey: "user_id", as: "user" })
 
 User.hasMany(TradingJournalPerformanceMetric, { foreignKey: "user_id", as: "performanceMetrics" })
 TradingJournalPerformanceMetric.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+// Screenshot associations
+TradingJournalTrade.hasMany(Screenshot, { foreignKey: "trade_id", as: "screenshots" })
+Screenshot.belongsTo(TradingJournalTrade, { foreignKey: "trade_id", as: "trade" })
+User.hasMany(Screenshot, { foreignKey: "user_id", as: "userScreenshots" })
+Screenshot.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+
 
 

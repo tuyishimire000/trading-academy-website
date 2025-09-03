@@ -11,6 +11,7 @@ import { EnvCheck } from "@/components/env-check"
 import { Users, BookOpen, Shield, Award, BarChart3, Target, Clock, DollarSign, TrendingUp, Zap, Globe, Rocket } from "lucide-react"
 import { EnhancedHero } from "./enhanced-hero"
 import { EnhancedFeatures } from "./enhanced-features"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 interface WebsiteSettings {
   branding: {
@@ -98,7 +99,7 @@ export function DynamicLandingPage() {
   // Show loading state while fetching settings
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen bg-slate-900">
+      <div className="flex flex-col min-h-screen bg-slate-900 dark:bg-gray-900">
         <div className="flex items-center justify-center h-screen">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
@@ -191,7 +192,7 @@ export function DynamicLandingPage() {
     .sort(([_, a], [__, b]) => (a?.order || 0) - (b?.order || 0))
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-900" style={themeStyles}>
+    <div className="flex flex-col min-h-screen bg-slate-900 dark:bg-gray-900" style={themeStyles}>
       {/* Enhanced Navigation */}
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b border-white/10 bg-black/50 backdrop-blur-md text-white sticky top-0 z-50">
         <Link className="flex items-center justify-center group" href="/">
@@ -485,7 +486,7 @@ export function DynamicLandingPage() {
 // Default Landing Page Component (unchanged for fallback)
 function DefaultLandingPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-slate-900">
+    <div className="flex flex-col min-h-screen bg-slate-900 dark:bg-gray-900">
       {/* Navigation */}
       <header className="px-4 lg:px-6 h-16 flex items-center justify-between border-b border-white/10 bg-black/50 backdrop-blur-md text-white sticky top-0 z-50">
         <Link className="flex items-center justify-center" href="/">
@@ -495,7 +496,7 @@ function DefaultLandingPage() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex gap-4 lg:gap-6">
+        <nav className="hidden md:flex gap-4 lg:gap-6 items-center">
           <Link className="text-sm font-medium hover:text-amber-400 transition-colors underline-offset-4" href="#about">
             About Trading
           </Link>
@@ -526,6 +527,7 @@ function DefaultLandingPage() {
           <Link className="text-sm font-medium hover:text-amber-400 transition-colors underline-offset-4" href="/login">
             Login
           </Link>
+          <ThemeToggle />
           <Link href="/signup">
             <Button 
               size="sm" 
@@ -547,14 +549,14 @@ function DefaultLandingPage() {
         </div>
 
         {/* Hero Section */}
-        <section className="w-full py-20 md:py-32 lg:py-40 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <section className="w-full py-20 md:py-32 lg:py-40 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 dark:from-gray-900 dark:via-purple-900 dark:to-gray-900">
           <div className="container px-4 md:px-6 mx-auto text-center">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               <span className="bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
                 Master the Art of Trading
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-300 dark:text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
               Join thousands of successful traders using our AI-powered platform and expert-led courses
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -580,7 +582,7 @@ function DefaultLandingPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-20 md:py-32 bg-gradient-to-b from-slate-900 to-slate-800">
+        <section id="features" className="py-20 md:py-32 bg-gradient-to-b from-slate-900 to-slate-800 dark:from-gray-900 dark:to-gray-800">
           <div className="container px-4 md:px-6 mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">

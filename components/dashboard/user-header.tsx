@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useUser } from "@/lib/hooks/use-user"
 import { useSubscription } from "@/lib/hooks/use-subscription"
 import { MessageCircle, LogOut, Crown, Star, ArrowUp, Check, X, Lock } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useDisconnect } from "wagmi"
@@ -271,6 +272,7 @@ export function UserHeader() {
             </div>
             
             <div className="flex space-x-2 w-full sm:w-auto">
+              <ThemeToggle />
               <Button 
                 className={`flex-1 sm:flex-none text-sm ${
                   isFreePlan 

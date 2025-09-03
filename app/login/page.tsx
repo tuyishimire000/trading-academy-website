@@ -77,7 +77,7 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center mb-4 sm:mb-6">
@@ -87,17 +87,17 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <Card className="w-full">
+        <Card className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl sm:text-2xl text-center">Welcome Back</CardTitle>
-            <CardDescription className="text-center text-sm sm:text-base">
+            <CardTitle className="text-xl sm:text-2xl text-center text-gray-900 dark:text-white">Welcome Back</CardTitle>
+            <CardDescription className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-300">
               Sign in to access your trading dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm">
+                <Label htmlFor="email" className="text-sm text-gray-700 dark:text-gray-200">
                   Email
                 </Label>
                 <Input
@@ -107,12 +107,12 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm">
+                <Label htmlFor="password" className="text-sm text-gray-700 dark:text-gray-200">
                   Password
                 </Label>
                 <Input
@@ -122,12 +122,12 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="flex items-center justify-between">
-                <Link href="/forgot-password" className="text-sm text-amber-500 hover:underline">
+                <Link href="/forgot-password" className="text-sm text-amber-500 dark:text-amber-400 hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -137,9 +137,9 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
+            <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
               {"Don't have an account? "}
-              <Link href="/signup" className="text-amber-500 hover:underline">
+              <Link href="/signup" className="text-amber-500 dark:text-amber-400 hover:underline">
                 Sign up
               </Link>
             </div>

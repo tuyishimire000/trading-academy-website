@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { verifyJwt } from '@/lib/auth/jwt'
 import { TradingJournalTrade, TradingJournalStrategy, TradingJournalCategory } from '@/lib/sequelize/models'
 
+
 // POST /api/trading-journal/trades/[id]/close - Close a trade
 export async function POST(
   request: NextRequest,
@@ -17,18 +18,17 @@ export async function POST(
     if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const tradeId = parseInt(params.id)
-    const body = await request.json()
-    const {
-      exit_price,
-      exit_time,
-      exit_reason,
-      exit_confidence,
-      pnl_amount,
-      pnl_percentage,
-      notes,
-      lessons_learned,
-      next_time_actions
-    } = body
+    const formData = await request.formData()
+    const exit_price = formData.get('exit_price') as string
+    const exit_time = formData.get('exit_time') as string
+    const exit_reason = formData.get('exit_reason') as string
+    const exit_confidence = formData.get('exit_confidence') as string
+    const pnl_amount = formData.get('pnl_amount') as string
+    const pnl_percentage = formData.get('pnl_percentage') as string
+    const notes = formData.get('notes') as string
+    const lessons_learned = formData.get('lessons_learned') as string
+    const next_time_actions = formData.get('next_time_actions') as string
+
 
     // Validate required fields
     if (!exit_price || !exit_time) {
@@ -69,6 +69,8 @@ export async function POST(
     // Determine if trade is winning
     const isWinning = pnlAmount > 0
 
+
+
     // Update the trade
     await trade.update({
       exit_price,
@@ -82,7 +84,7 @@ export async function POST(
       notes: notes || trade.notes,
       lessons_learned,
       next_time_actions,
-      screenshots: body.screenshots ? JSON.stringify(body.screenshots) : trade.screenshots,
+
       updated_at: new Date()
     })
 

@@ -61,19 +61,19 @@ export function AdminSidebar() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 dark:bg-gray-950 text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
-          <Link href="/admin" className="text-xl font-bold text-amber-400">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800 dark:border-gray-700">
+          <Link href="/admin" className="text-xl font-bold text-amber-400 dark:text-amber-300">
             Admin Panel
           </Link>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white hover:bg-gray-800"
+            className="lg:hidden text-white hover:bg-gray-800 dark:hover:bg-gray-700"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -90,7 +90,7 @@ export function AdminSidebar() {
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
                     "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors",
-                    isActive ? "bg-amber-600 text-white" : "text-gray-300 hover:bg-gray-800 hover:text-white",
+                    isActive ? "bg-amber-600 dark:bg-amber-500 text-white" : "text-gray-300 dark:text-gray-200 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white",
                   )}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
