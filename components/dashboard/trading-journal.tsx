@@ -661,8 +661,11 @@ export function TradingJournal() {
   const [showTradeViewModal, setShowTradeViewModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editFormData, setEditFormData] = useState<any>({})
+  
   const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'analytics' | 'calendar'>('overview')
   const [calendarView, setCalendarView] = useState<'winrate' | 'pnl' | 'trades'>('pnl')
+  // MT5 integration state
+  // MT5 removed
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number }>({
     year: new Date().getFullYear(),
     month: new Date().getMonth()
@@ -1143,6 +1146,7 @@ export function TradingJournal() {
               <Calendar className="mr-2 h-4 w-4" />
               Date Range
             </Button>
+            
             <Button onClick={() => setShowTradeForm(true)} className="bg-purple-600 hover:bg-purple-700">
               <Plus className="mr-2 h-4 w-4" />
               New Trade
@@ -1283,6 +1287,8 @@ export function TradingJournal() {
                 </CardContent>
               </Card>
             </div>
+
+            
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2022,6 +2028,206 @@ export function TradingJournal() {
                   )
                 })()}
               </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'mt5' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Connect MT5 Account</h2>
+                <p className="text-gray-600 dark:text-gray-400">Securely connect to import trades into your journal</p>
+              </div>
+            </div>
+
+            <Card className="bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="text-gray-900 dark:text-white">MT5 Credentials</CardTitle>
+                <CardDescription className="dark:text-gray-300">We never store your password in plain text. Use a read-only investor password where possible.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    const form = e.currentTarget as HTMLFormElement
+                    const server = (form.elements.namedItem('mt5_server') as HTMLInputElement)?.value
+                    const login = (form.elements.namedItem('mt5_login') as HTMLInputElement)?.value
+                    const password = (form.elements.namedItem('mt5_password') as HTMLInputElement)?.value
+                    try {
+                      setMt5Error(null)
+                      setMt5Connecting(true)
+                      const res = await fetch('/api/mt5/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ server, login, password })
+                      })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data?.error || 'Connection failed')
+                      // Store session in state for the session
+                      const sessionId = data?.session?.id || data?.session?.sessionId || data?.session?.token || null
+                      setMt5SessionId(sessionId)
+                      console.log('MT5 connected:', data?.session)
+                      alert('MT5 connected successfully')
+                    } catch (err: any) {
+                      setMt5Error(err?.message || 'Unknown error')
+                      alert(`MT5 connection failed: ${err?.message || 'Unknown error'}`)
+                    } finally {
+                      setMt5Connecting(false)
+                    }
+                  }}
+                >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-1">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Broker</label>
+                    <Select value={selectedBroker} onValueChange={(v) => { setSelectedBroker(v); setSelectedServer('') }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={brokers ? 'Select broker' : 'Loading...'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(brokers || []).map((b) => (
+                          <SelectItem key={b.name} value={b.name}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Server</label>
+                    <Select value={selectedServer} onValueChange={setSelectedServer} disabled={!selectedBroker}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedBroker ? 'Select server' : 'Select broker first'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(brokers?.find(b => b.name === selectedBroker)?.servers || []).map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Server</label>
+                    <Input name="mt5_server" placeholder="e.g. MetaQuotes-Demo" value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Account/Login</label>
+                    <Input name="mt5_login" placeholder="e.g. 12345678" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Password</label>
+                    <Input name="mt5_password" type="password" placeholder="Enter password" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">Platform</label>
+                    <Select defaultValue="mt5">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mt5">MetaTrader 5</SelectItem>
+                        <SelectItem value="mt4" disabled>MetaTrader 4 (coming soon)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <Button disabled={!selectedServer || mt5Connecting} type="submit" className="bg-purple-600 hover:bg-purple-700">{mt5Connecting ? 'Connecting...' : 'Connect'}</Button>
+                  <Button type="button" variant="outline" onClick={async () => {
+                    alert('We will ping MT5 with provided credentials once connected.')
+                  }}>Test Connection</Button>
+                </div>
+                </form>
+                {mt5Error && (
+                  <div className="text-sm text-red-600 mt-2">{mt5Error}</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="text-gray-900 dark:text-white">Import Options</CardTitle>
+                <CardDescription className="dark:text-gray-300">Choose how to sync your historical and new trades.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Button disabled={!mt5SessionId} variant="outline" onClick={async () => {
+                    if (!mt5SessionId) { alert('Please connect MT5 first.'); return }
+                    const res = await fetch('/api/mt5/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: mt5SessionId, from: new Date(Date.now() - 30*24*60*60*1000).toISOString(), to: new Date().toISOString() }) })
+                    const data = await res.json()
+                    if (!res.ok) {
+                      alert(`Import failed: ${data?.error || 'Unknown error'}`)
+                      return
+                    }
+                    console.log('Imported trades (30d):', data?.trades)
+                    setMt5TradesPreview(Array.isArray(data?.trades) ? data?.trades : (data?.trades?.results || []))
+                    alert('Fetched recent trades (check console). We will map these into journal next.')
+                  }}>Import Last 30 Days</Button>
+                  <Button disabled={!mt5SessionId} variant="outline" onClick={async () => {
+                    if (!mt5SessionId) { alert('Please connect MT5 first.'); return }
+                    const start = new Date(new Date().getFullYear(), 0, 1).toISOString()
+                    const res = await fetch('/api/mt5/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: mt5SessionId, from: start, to: new Date().toISOString() }) })
+                    const data = await res.json()
+                    if (!res.ok) {
+                      alert(`Import failed: ${data?.error || 'Unknown error'}`)
+                      return
+                    }
+                    console.log('Imported trades (YTD):', data?.trades)
+                    setMt5TradesPreview(Array.isArray(data?.trades) ? data?.trades : (data?.trades?.results || []))
+                    alert('Fetched YTD trades (check console).')
+                  }}>Import Year-to-Date</Button>
+                  <Button disabled={!mt5SessionId} variant="outline" onClick={async () => {
+                    if (!mt5SessionId) { alert('Please connect MT5 first.'); return }
+                    const res = await fetch('/api/mt5/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: mt5SessionId }) })
+                    const data = await res.json()
+                    if (!res.ok) {
+                      alert(`Import failed: ${data?.error || 'Unknown error'}`)
+                      return
+                    }
+                    console.log('Imported trades (All):', data?.trades)
+                    setMt5TradesPreview(Array.isArray(data?.trades) ? data?.trades : (data?.trades?.results || []))
+                    alert('Fetched all history (check console).')
+                  }}>Import All History</Button>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Auto-sync new trades every 15 minutes after connecting.</div>
+              </CardContent>
+            </Card>
+
+            
+
+            {mt5TradesPreview && (
+              <Card className="bg-white dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-gray-900 dark:text-white">MT5 Trades Preview</CardTitle>
+                  <CardDescription className="dark:text-gray-300">First {Math.min(mt5TradesPreview.length, 10)} trades shown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="text-gray-600 dark:text-gray-300">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Ticket</th>
+                          <th className="px-2 py-1 text-left">Symbol</th>
+                          <th className="px-2 py-1 text-left">Type</th>
+                          <th className="px-2 py-1 text-right">Volume</th>
+                          <th className="px-2 py-1 text-right">Profit</th>
+                          <th className="px-2 py-1 text-left">Close Time</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-800 dark:text-gray-100">
+                        {mt5TradesPreview.slice(0, 10).map((t, idx) => (
+                          <tr key={idx} className="border-t border-gray-200 dark:border-gray-700">
+                            <td className="px-2 py-1">{t.ticket || t.id || '-'}</td>
+                            <td className="px-2 py-1">{t.symbol || '-'}</td>
+                            <td className="px-2 py-1 capitalize">{t.type || t.side || '-'}</td>
+                            <td className="px-2 py-1 text-right">{t.volume || t.lots || '-'}</td>
+                            <td className="px-2 py-1 text-right">{typeof t.profit !== 'undefined' ? t.profit : (t.pnl || '-')}</td>
+                            <td className="px-2 py-1">{t.close_time || t.time_close || t.time || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}

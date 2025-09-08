@@ -308,22 +308,22 @@ function DashboardPageContent() {
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/market-scanner')}>
                 <CardContent className="p-6 text-center">
                   <TrendingUp className="h-12 w-12 text-orange-500 mx-auto mb-4" />
                   <h3 className="font-semibold mb-2">Market Scanner</h3>
                   <p className="text-sm text-gray-600">Find trading opportunities</p>
-                  <Button className="mt-4 w-full" variant="outline">
+                  <Button className="mt-4 w-full" variant="outline" onClick={(e) => { e.stopPropagation(); router.push('/market-scanner') }}>
                     Scan Markets
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/market-calendar')}>
                 <CardContent className="p-6 text-center">
                   <Calendar className="h-12 w-12 text-red-500 mx-auto mb-4" />
                   <h3 className="font-semibold mb-2">Economic Calendar</h3>
                   <p className="text-sm text-gray-600">Track market events</p>
-                  <Button className="mt-4 w-full" variant="outline">
+                  <Button className="mt-4 w-full" variant="outline" onClick={(e) => { e.stopPropagation(); router.push('/market-calendar') }}>
                     View Calendar
                   </Button>
                 </CardContent>
